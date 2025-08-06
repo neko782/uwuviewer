@@ -22,57 +22,64 @@ export default function ImageCard({ post, imageType = 'preview', onClick }: Imag
 
   const rating = ratingConfig[post.rating as keyof typeof ratingConfig] || ratingConfig.s;
   const imageUrl = imageType === 'sample' ? post.sample_url : post.preview_url;
+  
+  // Calculate aspect ratio from post dimensions
+  const aspectRatio = post.preview_height && post.preview_width 
+    ? (post.preview_height / post.preview_width) * 100 
+    : 133; // Default to 4:3 aspect ratio if dimensions not available
 
   return (
     <div
       className="image-card"
       onClick={onClick}
     >
-      {!imageLoaded && !imageError && (
-        <div className="image-placeholder">
-          <div className="loading-spinner">
-            <svg className="spinner-icon" viewBox="0 0 24 24" fill="none">
-              <circle 
-                className="spinner-track"
-                cx="12" 
-                cy="12" 
-                r="10" 
-                stroke="currentColor" 
-                strokeWidth="3"
-                opacity="0.25"
-              />
-              <circle 
-                className="spinner-fill"
-                cx="12" 
-                cy="12" 
-                r="10" 
-                stroke="currentColor" 
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray="60"
-                strokeDashoffset="15"
-              />
-            </svg>
+      <div className="image-container" style={{ paddingBottom: `${aspectRatio}%` }}>
+        {!imageLoaded && !imageError && (
+          <div className="image-placeholder">
+            <div className="loading-spinner">
+              <svg className="spinner-icon" viewBox="0 0 24 24" fill="none">
+                <circle 
+                  className="spinner-track"
+                  cx="12" 
+                  cy="12" 
+                  r="10" 
+                  stroke="currentColor" 
+                  strokeWidth="3"
+                  opacity="0.25"
+                />
+                <circle 
+                  className="spinner-fill"
+                  cx="12" 
+                  cy="12" 
+                  r="10" 
+                  stroke="currentColor" 
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray="60"
+                  strokeDashoffset="15"
+                />
+              </svg>
+            </div>
           </div>
-        </div>
-      )}
-      
-      {!imageError && (
-        <img
-          src={proxyImageUrl(imageUrl)}
-          alt={`Post ${post.id}`}
-          className={`image-preview ${imageLoaded ? 'loaded' : ''}`}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
-          loading="lazy"
-        />
-      )}
+        )}
+        
+        {!imageError && (
+          <img
+            src={proxyImageUrl(imageUrl)}
+            alt={`Post ${post.id}`}
+            className={`image-preview ${imageLoaded ? 'loaded' : ''}`}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+            loading="lazy"
+          />
+        )}
 
-      {imageError && (
-        <div className="image-error">
-          <span>Failed to load</span>
-        </div>
-      )}
+        {imageError && (
+          <div className="image-error">
+            <span>Failed to load</span>
+          </div>
+        )}
+      </div>
 
       <div className="rating-badge" style={{ 
         backgroundColor: rating.bg,
@@ -110,6 +117,12 @@ export default function ImageCard({ post, imageType = 'preview', onClick }: Imag
           opacity: 1;
         }
 
+        .image-container {
+          position: relative;
+          width: 100%;
+          background: var(--bg-secondary);
+        }
+
         .image-placeholder {
           position: absolute;
           inset: 0;
@@ -117,6 +130,7 @@ export default function ImageCard({ post, imageType = 'preview', onClick }: Imag
           display: flex;
           align-items: center;
           justify-content: center;
+          z-index: 1;
         }
 
         .loading-spinner {
@@ -141,9 +155,12 @@ export default function ImageCard({ post, imageType = 'preview', onClick }: Imag
         }
 
         .image-preview {
+          position: absolute;
+          top: 0;
+          left: 0;
           width: 100%;
-          height: auto;
-          display: block;
+          height: 100%;
+          object-fit: cover;
           opacity: 0;
           transition: opacity 0.3s ease;
         }
@@ -161,6 +178,7 @@ export default function ImageCard({ post, imageType = 'preview', onClick }: Imag
           background: var(--bg-secondary);
           color: var(--text-dim);
           font-size: 14px;
+          z-index: 1;
         }
 
         .image-overlay {
