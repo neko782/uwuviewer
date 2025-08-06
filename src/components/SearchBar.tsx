@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Site } from '@/lib/api';
 import Image from 'next/image';
 import Pagination from './Pagination';
@@ -584,40 +585,43 @@ export default function SearchBar({
         }
       `}</style>
 
-      {showApiKeyModal && (
-        <div className="modal-overlay" onClick={() => setShowApiKeyModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Gelbooru API Key</h3>
-            <p className="modal-description">
-              Enter your Gelbooru API credentials. Format: &api_key=xxx&user_id=yyy
-            </p>
-            <input
-              type="text"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="&api_key=your_key&user_id=your_id"
-              className="api-key-input"
-            />
-            <div className="modal-buttons">
-              <button
-                onClick={() => {
-                  onApiKeyChange(apiKeyInput);
-                  setShowApiKeyModal(false);
-                }}
-                className="modal-button save"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setShowApiKeyModal(false)}
-                className="modal-button cancel"
-              >
-                Cancel
-              </button>
+      {showApiKeyModal && typeof document !== 'undefined' && 
+        ReactDOM.createPortal(
+          <div className="modal-overlay" onClick={() => setShowApiKeyModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <h3>Gelbooru API Key</h3>
+              <p className="modal-description">
+                Enter your Gelbooru API credentials. Format: &api_key=xxx&user_id=yyy
+              </p>
+              <input
+                type="text"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="&api_key=your_key&user_id=your_id"
+                className="api-key-input"
+              />
+              <div className="modal-buttons">
+                <button
+                  onClick={() => {
+                    onApiKeyChange(apiKeyInput);
+                    setShowApiKeyModal(false);
+                  }}
+                  className="modal-button save"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setShowApiKeyModal(false)}
+                  className="modal-button cancel"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )
+      }
 
       <style jsx>{`
         .modal-overlay {
