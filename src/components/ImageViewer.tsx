@@ -126,8 +126,8 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
         .viewer-container {
           background: var(--bg-secondary);
           border-radius: var(--radius-lg);
-          max-width: 90vw;
-          max-height: 85vh;
+          width: 90vw;
+          height: 85vh;
           display: flex;
           overflow: hidden;
           position: relative;
@@ -174,9 +174,7 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
           justify-content: center;
           background: var(--bg-primary);
           position: relative;
-          min-height: 400px;
-          max-height: 70vh;
-          padding: 20px;
+          overflow: hidden;
         }
 
         .viewer-loading {
@@ -201,8 +199,8 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
         }
 
         .viewer-image {
-          max-width: calc(100% - 40px);
-          max-height: calc(100% - 40px);
+          max-width: 100%;
+          max-height: 100%;
           width: auto;
           height: auto;
           object-fit: contain;
@@ -221,6 +219,7 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
           overflow-y: auto;
           background: var(--bg-secondary);
           border-left: 1px solid var(--border-subtle);
+          flex-shrink: 0;
         }
 
         .info-section {
@@ -306,24 +305,21 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
         @media (max-width: 768px) {
           .viewer-container {
             flex-direction: column;
-            max-height: 90vh;
+            width: 95vw;
+            height: 90vh;
           }
 
           .viewer-content {
-            max-height: 50vh;
-            padding: 10px;
-          }
-
-          .viewer-image {
-            max-width: calc(100% - 20px);
-            max-height: calc(100% - 20px);
+            flex: 1;
+            min-height: 0;
           }
 
           .viewer-info {
             width: 100%;
             border-left: none;
             border-top: 1px solid var(--border-subtle);
-            max-height: 40vh;
+            height: 40%;
+            flex-shrink: 0;
           }
         }
       `}</style>
