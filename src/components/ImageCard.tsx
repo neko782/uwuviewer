@@ -79,11 +79,11 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
         {rating.label}
       </div>
 
-      <div className="image-overlay">
-        <div className="image-info">
-          <span className="image-score">★ {post.score}</span>
-        </div>
+      <div className="score-badge">
+        ★ {post.score}
       </div>
+
+      <div className="image-overlay" />
 
       <style jsx>{`
         .image-card {
@@ -188,22 +188,18 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
-        .image-info {
+        .score-badge {
           position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          padding: 12px;
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-          color: var(--text-primary);
+          bottom: 8px;
+          right: 8px;
+          padding: 4px 8px;
+          border-radius: 6px;
           font-size: 12px;
-          font-weight: 500;
-        }
-
-        .image-score {
-          opacity: 0.9;
+          font-weight: 600;
+          background: rgba(0, 0, 0, 0.7);
+          color: var(--text-primary);
+          z-index: 1;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
       `}</style>
     </div>
