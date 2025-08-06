@@ -28,15 +28,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 58000); // 58 seconds timeout (less than maxDuration)
-
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': validatedUrl.origin,
       },
-      signal: controller.signal,
       // @ts-ignore - undici dispatcher option
       dispatcher: agent,
       // @ts-ignore - Next.js specific fetch options
@@ -44,8 +40,6 @@ export async function GET(request: NextRequest) {
         revalidate: 3600, // Cache for 1 hour
       },
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return NextResponse.json(
@@ -65,14 +59,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Image proxy error:', error);
-    
-    // Handle timeout errors
-    if (error.name === 'AbortError') {
-      return NextResponse.json(
-        { error: 'Request timeout - image took too long to load' },
-        { status: 504 }
-      );
-    }
     
     // Handle connection errors
     if (error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT') {
