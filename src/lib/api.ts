@@ -41,7 +41,7 @@ export type Site = 'yande.re' | 'konachan.com';
 
 export class MoebooruAPI {
   private baseUrl: string;
-  private timeout = 30000; // 30 seconds timeout
+  private timeout = 60000; // 60 seconds timeout
 
   constructor(site: Site = 'yande.re') {
     this.baseUrl = `https://${site}`;
