@@ -74,50 +74,6 @@ export default function SearchBar({
     <div className="search-container">
       <div className="search-row">
         <form onSubmit={handleSubmit} className="search-form">
-        <div className="site-selector" ref={siteDropdownRef}>
-          <button
-            type="button"
-            className="site-selector-button"
-            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
-          >
-            <Image
-              src={currentSiteData.icon}
-              alt={currentSiteData.label}
-              width={16}
-              height={16}
-              className="site-icon"
-            />
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="dropdown-arrow">
-              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          
-          {showSiteDropdown && (
-            <div className="site-dropdown">
-              {sites.map((site) => (
-                <button
-                  key={site.value}
-                  type="button"
-                  className={`site-option ${currentSite === site.value ? 'active' : ''}`}
-                  onClick={() => {
-                    onSiteChange(site.value);
-                    setShowSiteDropdown(false);
-                  }}
-                >
-                  <Image
-                    src={site.icon}
-                    alt={site.label}
-                    width={16}
-                    height={16}
-                    className="site-icon"
-                  />
-                  <span>{site.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        
         <input
           type="text"
           value={searchInput}
@@ -213,6 +169,60 @@ export default function SearchBar({
       />
       </div>
 
+      <div className="bottom-row">
+        <div className="site-selector" ref={siteDropdownRef}>
+          <button
+            type="button"
+            className="site-selector-button"
+            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
+          >
+            <Image
+              src={currentSiteData.icon}
+              alt={currentSiteData.label}
+              width={16}
+              height={16}
+              className="site-icon"
+            />
+            <span className="site-name">{currentSiteData.label}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="dropdown-arrow">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          
+          {showSiteDropdown && (
+            <div className="site-dropdown">
+              {sites.map((site) => (
+                <button
+                  key={site.value}
+                  type="button"
+                  className={`site-option ${currentSite === site.value ? 'active' : ''}`}
+                  onClick={() => {
+                    onSiteChange(site.value);
+                    setShowSiteDropdown(false);
+                  }}
+                >
+                  <Image
+                    src={site.icon}
+                    alt={site.label}
+                    width={16}
+                    height={16}
+                    className="site-icon"
+                  />
+                  <span>{site.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <Pagination
+          currentPage={currentPage}
+          hasMore={hasMore}
+          loading={loading}
+          onPageChange={onPageChange}
+        />
+      </div>
+
       <style jsx>{`
         .search-container {
           width: 100%;
@@ -226,6 +236,10 @@ export default function SearchBar({
           gap: 16px;
           flex-wrap: wrap;
           justify-content: center;
+        }
+
+        .bottom-row {
+          display: none;
         }
 
         .search-form {
@@ -244,14 +258,15 @@ export default function SearchBar({
         .site-selector-button {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 12px;
+          gap: 8px;
+          padding: 12px 16px;
           background: var(--bg-secondary);
           border: 1px solid var(--border-subtle);
           border-radius: var(--radius-md);
           color: var(--text-primary);
           cursor: pointer;
           transition: border-color 0.2s ease, background 0.2s ease;
+          white-space: nowrap;
         }
 
         .site-selector-button:hover {
@@ -261,11 +276,18 @@ export default function SearchBar({
 
         .site-icon {
           display: block;
+          flex-shrink: 0;
+        }
+
+        .site-name {
+          font-size: 14px;
+          font-weight: 500;
         }
 
         .dropdown-arrow {
           opacity: 0.6;
           transition: transform 0.2s ease;
+          margin-left: auto;
         }
 
         .site-selector-button:hover .dropdown-arrow {
@@ -280,7 +302,7 @@ export default function SearchBar({
           border: 1px solid var(--border-default);
           border-radius: var(--radius-md);
           padding: 4px;
-          min-width: 160px;
+          min-width: 100%;
           z-index: 100;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
           animation: dropIn 0.2s ease;
@@ -436,8 +458,33 @@ export default function SearchBar({
             gap: 12px;
           }
 
+          .search-row > :global(.pagination-container) {
+            display: none;
+          }
+
           .search-form {
             min-width: 100%;
+          }
+
+          .bottom-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            width: 100%;
+          }
+
+          .bottom-row .site-selector {
+            flex: 1;
+          }
+
+          .bottom-row .site-selector-button {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .bottom-row > :global(.pagination-container) {
+            flex-shrink: 0;
           }
         }
       `}</style>
