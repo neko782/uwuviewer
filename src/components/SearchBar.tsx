@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Site } from '@/lib/api';
+import Image from 'next/image';
 import Pagination from './Pagination';
 
 interface SearchBarProps {
@@ -35,7 +36,14 @@ export default function SearchBar({
 }: SearchBarProps) {
   const [searchInput, setSearchInput] = useState(searchTags);
   const [showFilters, setShowFilters] = useState(false);
+  const [showSiteDropdown, setShowSiteDropdown] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const siteDropdownRef = useRef<HTMLDivElement>(null);
+
+  const sites: { value: Site; label: string; icon: string }[] = [
+    { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico' },
+    { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico' }
+  ];
 
   useEffect(() => {
     setSearchInput(searchTags);
@@ -45,6 +53,9 @@ export default function SearchBar({
     const handleClickOutside = (event: MouseEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setShowFilters(false);
+      }
+      if (siteDropdownRef.current && !siteDropdownRef.current.contains(event.target as Node)) {
+        setShowSiteDropdown(false);
       }
     };
 
@@ -57,10 +68,56 @@ export default function SearchBar({
     onSearch(searchInput);
   };
 
+  const currentSiteData = sites.find(s => s.value === currentSite) || sites[0];
+
   return (
     <div className="search-container">
       <div className="search-row">
         <form onSubmit={handleSubmit} className="search-form">
+        <div className="site-selector" ref={siteDropdownRef}>
+          <button
+            type="button"
+            className="site-selector-button"
+            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
+          >
+            <Image
+              src={currentSiteData.icon}
+              alt={currentSiteData.label}
+              width={16}
+              height={16}
+              className="site-icon"
+            />
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="dropdown-arrow">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          
+          {showSiteDropdown && (
+            <div className="site-dropdown">
+              {sites.map((site) => (
+                <button
+                  key={site.value}
+                  type="button"
+                  className={`site-option ${currentSite === site.value ? 'active' : ''}`}
+                  onClick={() => {
+                    onSiteChange(site.value);
+                    setShowSiteDropdown(false);
+                  }}
+                >
+                  <Image
+                    src={site.icon}
+                    alt={site.label}
+                    width={16}
+                    height={16}
+                    className="site-icon"
+                  />
+                  <span>{site.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        
         <input
           type="text"
           value={searchInput}
@@ -90,26 +147,6 @@ export default function SearchBar({
 
           {showFilters && (
             <div className="filter-dropdown">
-              <div className="filter-section">
-                <label className="filter-label">Site</label>
-                <div className="filter-options">
-                  <button
-                    type="button"
-                    className={`filter-option ${currentSite === 'yande.re' ? 'active' : ''}`}
-                    onClick={() => onSiteChange('yande.re')}
-                  >
-                    Yande.re
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-option ${currentSite === 'konachan.com' ? 'active' : ''}`}
-                    onClick={() => onSiteChange('konachan.com')}
-                  >
-                    Konachan
-                  </button>
-                </div>
-              </div>
-
               <div className="filter-section">
                 <label className="filter-label">Rating</label>
                 <div className="filter-options">
@@ -198,6 +235,81 @@ export default function SearchBar({
           flex: 1;
           min-width: 300px;
           max-width: 500px;
+        }
+
+        .site-selector {
+          position: relative;
+        }
+
+        .site-selector-button {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 12px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          cursor: pointer;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .site-selector-button:hover {
+          background: var(--bg-tertiary);
+          border-color: var(--accent-dim);
+        }
+
+        .site-icon {
+          display: block;
+        }
+
+        .dropdown-arrow {
+          opacity: 0.6;
+          transition: transform 0.2s ease;
+        }
+
+        .site-selector-button:hover .dropdown-arrow {
+          opacity: 1;
+        }
+
+        .site-dropdown {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          padding: 4px;
+          min-width: 160px;
+          z-index: 100;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          animation: dropIn 0.2s ease;
+        }
+
+        .site-option {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 8px 12px;
+          background: transparent;
+          border: none;
+          border-radius: var(--radius-sm);
+          color: var(--text-secondary);
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: left;
+        }
+
+        .site-option:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .site-option.active {
+          background: var(--accent-dim);
+          color: var(--accent);
         }
 
         .search-input {
