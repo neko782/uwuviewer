@@ -13,14 +13,10 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const aspectRatio = post.preview_height / post.preview_width;
-  const displayHeight = Math.round(250 * aspectRatio);
-
   return (
     <div
       className="image-card"
       onClick={onClick}
-      style={{ height: `${displayHeight}px` }}
     >
       {!imageLoaded && !imageError && (
         <div className="image-placeholder" />
@@ -59,6 +55,9 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
           cursor: pointer;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
           width: 100%;
+          break-inside: avoid;
+          margin-bottom: 16px;
+          display: inline-block;
         }
 
         .image-card:hover {
@@ -89,8 +88,8 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
 
         .image-preview {
           width: 100%;
-          height: 100%;
-          object-fit: cover;
+          height: auto;
+          display: block;
           opacity: 0;
           transition: opacity 0.3s ease;
         }

@@ -137,7 +137,7 @@ export default function Home() {
           </div>
         )}
 
-        <div className="gallery-grid">
+        <div className="gallery-masonry">
           {posts.map((post) => (
             <ImageCard
               key={post.id}
@@ -213,11 +213,35 @@ export default function Home() {
           margin: 0 auto;
         }
 
-        .gallery-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-          gap: 16px;
+        .gallery-masonry {
+          column-count: 5;
+          column-gap: 16px;
           margin-bottom: 48px;
+        }
+        
+        @media (max-width: 1400px) {
+          .gallery-masonry {
+            column-count: 4;
+          }
+        }
+        
+        @media (max-width: 1024px) {
+          .gallery-masonry {
+            column-count: 3;
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .gallery-masonry {
+            column-count: 2;
+            column-gap: 12px;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .gallery-masonry {
+            column-count: 1;
+          }
         }
 
         .loading-container {
@@ -290,10 +314,7 @@ export default function Home() {
             padding: 16px;
           }
 
-          .gallery-grid {
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 12px;
-          }
+
         }
       `}</style>
     </div>
