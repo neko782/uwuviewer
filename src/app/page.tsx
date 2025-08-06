@@ -1,103 +1,273 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MoebooruAPI, MoebooruPost, Site } from '@/lib/api';
+import ImageCard from '@/components/ImageCard';
+import ImageViewer from '@/components/ImageViewer';
+import SearchBar from '@/components/SearchBar';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [posts, setPosts] = useState<MoebooruPost[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedPost, setSelectedPost] = useState<MoebooruPost | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [searchTags, setSearchTags] = useState('');
+  const [site, setSite] = useState<Site>('yande.re');
+  const [rating, setRating] = useState<'s' | 'q' | 'e' | null>(null);
+  
+  const apiRef = useRef<MoebooruAPI>(new MoebooruAPI(site));
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const loadPosts = useCallback(async (pageNum: number, reset = false) => {
+    if (loading) return;
+    
+    setLoading(true);
+    setError(null);
+
+    try {
+      const newPosts = await apiRef.current.getPosts({
+        page: pageNum,
+        limit: 30,
+        tags: searchTags,
+        rating: rating || undefined,
+      });
+
+      if (newPosts.length === 0) {
+        setHasMore(false);
+      } else {
+        setPosts(prev => reset ? newPosts : [...prev, ...newPosts]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load posts');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTags, rating, loading]);
+
+  useEffect(() => {
+    apiRef.current = new MoebooruAPI(site);
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+    loadPosts(1, true);
+  }, [site, searchTags, rating, loadPosts]);
+
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          const nextPage = page + 1;
+          setPage(nextPage);
+          loadPosts(nextPage);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [page, hasMore, loading, loadPosts]);
+
+  const handleSearch = (tags: string) => {
+    setSearchTags(tags);
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+  };
+
+  const handleSiteChange = (newSite: Site) => {
+    setSite(newSite);
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+  };
+
+  const handleRatingChange = (newRating: 's' | 'q' | 'e' | null) => {
+    setRating(newRating);
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+  };
+
+  return (
+    <div className="app-container">
+      <header className="app-header">
+        <div className="header-content">
+          <h1 className="app-title">Moebooru Viewer</h1>
+          <p className="app-subtitle">Browse images from {site}</p>
         </div>
+        
+        <SearchBar
+          onSearch={handleSearch}
+          onSiteChange={handleSiteChange}
+          onRatingChange={handleRatingChange}
+          currentSite={site}
+          currentRating={rating}
+        />
+      </header>
+
+      <main className="app-main">
+        {error && (
+          <div className="error-message">
+            <p>Error: {error}</p>
+          </div>
+        )}
+
+        <div className="gallery-grid">
+          {posts.map((post) => (
+            <ImageCard
+              key={post.id}
+              post={post}
+              onClick={() => setSelectedPost(post)}
+            />
+          ))}
+        </div>
+
+        {loading && (
+          <div className="loading-container">
+            <div className="loading-spinner" />
+            <p>Loading images...</p>
+          </div>
+        )}
+
+        {hasMore && !loading && (
+          <div ref={loadMoreRef} className="load-more-trigger" />
+        )}
+
+        {!hasMore && posts.length > 0 && (
+          <div className="end-message">
+            <p>No more images to load</p>
+          </div>
+        )}
+
+        {!loading && posts.length === 0 && !error && (
+          <div className="empty-message">
+            <p>No images found</p>
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      <ImageViewer
+        post={selectedPost}
+        onClose={() => setSelectedPost(null)}
+      />
+
+      <style jsx>{`
+        .app-container {
+          min-height: 100vh;
+          background: var(--bg-primary);
+        }
+
+        .app-header {
+          background: var(--bg-secondary);
+          border-bottom: 1px solid var(--border-subtle);
+          padding: 32px 24px;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          backdrop-filter: blur(10px);
+          background: rgba(36, 36, 36, 0.95);
+        }
+
+        .header-content {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+
+        .app-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin-bottom: 4px;
+          letter-spacing: -0.5px;
+        }
+
+        .app-subtitle {
+          font-size: 14px;
+          color: var(--text-secondary);
+        }
+
+        .app-main {
+          padding: 24px;
+          max-width: 1400px;
+          margin: 0 auto;
+        }
+
+        .gallery-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 16px;
+          margin-bottom: 48px;
+        }
+
+        .loading-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 48px;
+          color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+          width: 48px;
+          height: 48px;
+          border: 3px solid var(--bg-tertiary);
+          border-top-color: var(--accent);
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .error-message,
+        .empty-message,
+        .end-message {
+          text-align: center;
+          padding: 48px;
+          color: var(--text-secondary);
+        }
+
+        .error-message {
+          color: #ff6b6b;
+        }
+
+        .load-more-trigger {
+          height: 100px;
+        }
+
+        @media (max-width: 768px) {
+          .app-header {
+            padding: 24px 16px;
+          }
+
+          .app-main {
+            padding: 16px;
+          }
+
+          .gallery-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
