@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 interface PaginationProps {
   currentPage: number;
   hasMore: boolean;
@@ -13,6 +15,12 @@ export default function Pagination({
   loading,
   onPageChange
 }: PaginationProps) {
+  const [inputValue, setInputValue] = useState(currentPage.toString());
+
+  useEffect(() => {
+    setInputValue(currentPage.toString());
+  }, [currentPage]);
+
   const handlePrevious = () => {
     if (currentPage > 1 && !loading) {
       onPageChange(currentPage - 1);
@@ -27,8 +35,7 @@ export default function Pagination({
 
   const handlePageInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      const input = e.currentTarget;
-      const pageNum = parseInt(input.value);
+      const pageNum = parseInt(inputValue);
       if (!isNaN(pageNum) && pageNum > 0 && pageNum !== currentPage && !loading) {
         onPageChange(pageNum);
       }
@@ -54,8 +61,8 @@ export default function Pagination({
         <input
           type="number"
           className="pagination-input"
-          value={currentPage}
-          onChange={(e) => e.currentTarget.value = e.currentTarget.value}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handlePageInput}
           disabled={loading}
           min="1"
