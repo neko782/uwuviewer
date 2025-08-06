@@ -8,12 +8,10 @@ import Pagination from './Pagination';
 interface SearchBarProps {
   onSearch: (tags: string) => void;
   onSiteChange: (site: Site) => void;
-  onRatingChange: (rating: 's' | 'q' | 'e' | null) => void;
   onPageChange: (page: number) => void;
   onImageTypeChange: (imageType: 'preview' | 'sample') => void;
   onApiKeyChange: (apiKey: string) => void;
   currentSite: Site;
-  currentRating: 's' | 'q' | 'e' | null;
   currentPage: number;
   currentImageType: 'preview' | 'sample';
   currentApiKey: string;
@@ -25,12 +23,10 @@ interface SearchBarProps {
 export default function SearchBar({
   onSearch,
   onSiteChange,
-  onRatingChange,
   onPageChange,
   onImageTypeChange,
   onApiKeyChange,
   currentSite,
-  currentRating,
   currentPage,
   currentImageType,
   currentApiKey,
@@ -38,7 +34,14 @@ export default function SearchBar({
   loading,
   searchTags = ''
 }: SearchBarProps) {
-  const [searchInput, setSearchInput] = useState(searchTags);
+  const sites: { value: Site; label: string; icon: string; needsApiKey?: boolean; defaultRating: string }[] = [
+    { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico', defaultRating: 'rating:safe' },
+    { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico', defaultRating: 'rating:safe' },
+    { value: 'gelbooru.com', label: 'Gelbooru', icon: '/gelbooru.ico', needsApiKey: true, defaultRating: 'rating:general' }
+  ];
+
+  const currentSiteData = sites.find(s => s.value === currentSite) || sites[0];
+  const [searchInput, setSearchInput] = useState(searchTags || currentSiteData.defaultRating);
   const [showFilters, setShowFilters] = useState(false);
   const [showSiteDropdown, setShowSiteDropdown] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
@@ -46,15 +49,24 @@ export default function SearchBar({
   const filterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
 
-  const sites: { value: Site; label: string; icon: string; needsApiKey?: boolean }[] = [
-    { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico' },
-    { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico' },
-    { value: 'gelbooru.com', label: 'Gelbooru', icon: '/gelbooru.ico', needsApiKey: true }
-  ];
-
   useEffect(() => {
     setSearchInput(searchTags);
   }, [searchTags]);
+
+  useEffect(() => {
+    // When site changes, update the search input if it's empty or only contains a rating
+    const trimmedInput = searchInput.trim();
+    const isOnlyRating = trimmedInput === 'rating:safe' || 
+                         trimmedInput === 'rating:general' || 
+                         trimmedInput === '';
+    
+    if (isOnlyRating) {
+      const newSiteData = sites.find(s => s.value === currentSite);
+      if (newSiteData) {
+        setSearchInput(newSiteData.defaultRating);
+      }
+    }
+  }, [currentSite, searchInput]);
 
   useEffect(() => {
     setApiKeyInput(currentApiKey);
@@ -78,8 +90,6 @@ export default function SearchBar({
     e.preventDefault();
     onSearch(searchInput);
   };
-
-  const currentSiteData = sites.find(s => s.value === currentSite) || sites[0];
 
   return (
     <div className="search-container">
@@ -159,40 +169,6 @@ export default function SearchBar({
 
           {showFilters && (
             <div className="filter-dropdown">
-              <div className="filter-section">
-                <label className="filter-label">Rating</label>
-                <div className="filter-options">
-                  <button
-                    type="button"
-                    className={`filter-option ${currentRating === null ? 'active' : ''}`}
-                    onClick={() => onRatingChange(null)}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-option ${currentRating === 's' ? 'active' : ''}`}
-                    onClick={() => onRatingChange('s')}
-                  >
-                    Safe
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-option ${currentRating === 'q' ? 'active' : ''}`}
-                    onClick={() => onRatingChange('q')}
-                  >
-                    Questionable
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-option ${currentRating === 'e' ? 'active' : ''}`}
-                    onClick={() => onRatingChange('e')}
-                  >
-                    Explicit
-                  </button>
-                </div>
-              </div>
-
               <div className="filter-section">
                 <label className="filter-label">Image Quality</label>
                 <div className="filter-options">

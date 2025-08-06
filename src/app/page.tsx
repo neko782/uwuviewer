@@ -15,7 +15,6 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true);
   const [searchTags, setSearchTags] = useState('');
   const [site, setSite] = useState<Site>('yande.re');
-  const [rating, setRating] = useState<'s' | 'q' | 'e' | null>('s');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [headerHidden, setHeaderHidden] = useState(false);
   const [imageType, setImageType] = useState<'preview' | 'sample'>('preview');
@@ -42,7 +41,6 @@ export default function Home() {
         page: pageNum,
         limit: 30,
         tags: searchTags,
-        rating: rating || undefined,
       });
 
       if (newPosts.length === 0) {
@@ -59,7 +57,7 @@ export default function Home() {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [searchTags, rating]);
+  }, [searchTags]);
 
   useEffect(() => {
     apiRef.current = new ImageBoardAPI(site, apiKey);
@@ -68,7 +66,7 @@ export default function Home() {
     setHasMore(true);
     setIsInitialLoad(true);
     loadPosts(1, true);
-  }, [site, searchTags, rating, apiKey, loadPosts]);
+  }, [site, searchTags, apiKey, loadPosts]);
 
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage !== page && !loadingRef.current) {
@@ -95,13 +93,7 @@ export default function Home() {
     setError(null);
   };
 
-  const handleRatingChange = (newRating: 's' | 'q' | 'e' | null) => {
-    setRating(newRating);
-    setPosts([]);
-    setPage(1);
-    setHasMore(true);
-    setError(null);
-  };
+
 
   const handleImageTypeChange = (newImageType: 'preview' | 'sample') => {
     setImageType(newImageType);
@@ -143,12 +135,10 @@ export default function Home() {
         <SearchBar
           onSearch={handleSearch}
           onSiteChange={handleSiteChange}
-          onRatingChange={handleRatingChange}
           onPageChange={handlePageChange}
           onImageTypeChange={handleImageTypeChange}
           onApiKeyChange={handleApiKeyChange}
           currentSite={site}
-          currentRating={rating}
           currentPage={page}
           currentImageType={imageType}
           currentApiKey={apiKey}
