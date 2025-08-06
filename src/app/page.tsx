@@ -122,6 +122,7 @@ export default function Home() {
           currentPage={page}
           hasMore={hasMore}
           loading={loading}
+          searchTags={searchTags}
         />
       </header>
 
@@ -170,6 +171,13 @@ export default function Home() {
       <ImageViewer
         post={selectedPost}
         onClose={() => setSelectedPost(null)}
+        onTagClick={(tag) => {
+          setSearchTags(tag);
+          setPosts([]);
+          setPage(1);
+          setHasMore(true);
+          setError(null);
+        }}
       />
 
       <style jsx>{`

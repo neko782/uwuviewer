@@ -7,9 +7,10 @@ import { useEffect, useState } from 'react';
 interface ImageViewerProps {
   post: MoebooruPost | null;
   onClose: () => void;
+  onTagClick?: (tag: string) => void;
 }
 
-export default function ImageViewer({ post, onClose }: ImageViewerProps) {
+export default function ImageViewer({ post, onClose, onTagClick }: ImageViewerProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
@@ -85,9 +86,18 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
             <h3>Tags</h3>
             <div className="tags-container">
               {post.tags.split(' ').slice(0, 20).map((tag, index) => (
-                <span key={index} className="tag">
+                <button
+                  key={index}
+                  className="tag"
+                  onClick={() => {
+                    if (onTagClick) {
+                      onTagClick(tag);
+                      onClose();
+                    }
+                  }}
+                >
                   {tag.replace(/_/g, ' ')}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -273,6 +283,9 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
           font-size: 12px;
           color: var(--text-secondary);
           transition: background 0.2s ease, color 0.2s ease;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
         }
 
         .tag:hover {

@@ -14,6 +14,7 @@ interface SearchBarProps {
   currentPage: number;
   hasMore: boolean;
   loading: boolean;
+  searchTags?: string;
 }
 
 export default function SearchBar({
@@ -25,11 +26,16 @@ export default function SearchBar({
   currentRating,
   currentPage,
   hasMore,
-  loading
+  loading,
+  searchTags = ''
 }: SearchBarProps) {
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState(searchTags);
   const [showFilters, setShowFilters] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSearchInput(searchTags);
+  }, [searchTags]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
