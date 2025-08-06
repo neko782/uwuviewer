@@ -334,7 +334,7 @@ export default function SearchBar({
           border-color: var(--accent-dim);
         }
 
-        img.site-icon {
+        :global(img.site-icon) {
           width: 16px;
           height: 16px;
           max-width: 16px;
