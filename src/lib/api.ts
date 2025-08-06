@@ -41,9 +41,31 @@ export type Site = 'yande.re' | 'konachan.com';
 
 export class MoebooruAPI {
   private baseUrl: string;
+  private corsProxy = 'https://corsproxy.io/?';
+  private timeout = 30000; // 30 seconds timeout
 
   constructor(site: Site = 'yande.re') {
     this.baseUrl = `https://${site}`;
+  }
+
+  private async fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timeout - please try again');
+      }
+      throw error;
+    }
   }
 
   async getPosts(params: {
@@ -67,7 +89,8 @@ export class MoebooruAPI {
         : `rating:${params.rating}`);
     }
 
-    const response = await fetch(`${this.baseUrl}/post.json?${queryParams}`);
+    const url = `${this.corsProxy}${encodeURIComponent(`${this.baseUrl}/post.json?${queryParams}`)}`;
+    const response = await this.fetchWithTimeout(url);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch posts: ${response.statusText}`);
@@ -77,7 +100,8 @@ export class MoebooruAPI {
   }
 
   async getPost(id: number): Promise<MoebooruPost> {
-    const response = await fetch(`${this.baseUrl}/post/show/${id}.json`);
+    const url = `${this.corsProxy}${encodeURIComponent(`${this.baseUrl}/post/show/${id}.json`)}`;
+    const response = await this.fetchWithTimeout(url);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch post: ${response.statusText}`);
@@ -87,9 +111,10 @@ export class MoebooruAPI {
   }
 
   async searchTags(query: string): Promise<unknown[]> {
-    const response = await fetch(
+    const url = `${this.corsProxy}${encodeURIComponent(
       `${this.baseUrl}/tag.json?name=${encodeURIComponent(query)}*&limit=10`
-    );
+    )}`;
+    const response = await this.fetchWithTimeout(url);
     
     if (!response.ok) {
       throw new Error(`Failed to search tags: ${response.statusText}`);

@@ -16,14 +16,17 @@ export default function Home() {
   const [searchTags, setSearchTags] = useState('');
   const [site, setSite] = useState<Site>('yande.re');
   const [rating, setRating] = useState<'s' | 'q' | 'e' | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   const apiRef = useRef<MoebooruAPI>(new MoebooruAPI(site));
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
 
   const loadPosts = useCallback(async (pageNum: number, reset = false) => {
-    if (loading) return;
+    if (loadingRef.current) return;
     
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -40,18 +43,22 @@ export default function Home() {
       } else {
         setPosts(prev => reset ? newPosts : [...prev, ...newPosts]);
       }
+      setIsInitialLoad(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load posts');
+      setHasMore(false); // Stop trying to load more on error
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  }, [searchTags, rating, loading]);
+  }, [searchTags, rating]);
 
   useEffect(() => {
     apiRef.current = new MoebooruAPI(site);
     setPosts([]);
     setPage(1);
     setHasMore(true);
+    setIsInitialLoad(true);
     loadPosts(1, true);
   }, [site, searchTags, rating, loadPosts]);
 
@@ -62,7 +69,7 @@ export default function Home() {
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
+        if (entries[0].isIntersecting && hasMore && !loadingRef.current && !error) {
           const nextPage = page + 1;
           setPage(nextPage);
           loadPosts(nextPage);
@@ -80,13 +87,14 @@ export default function Home() {
         observerRef.current.disconnect();
       }
     };
-  }, [page, hasMore, loading, loadPosts]);
+  }, [page, hasMore, error, loadPosts]);
 
   const handleSearch = (tags: string) => {
     setSearchTags(tags);
     setPosts([]);
     setPage(1);
     setHasMore(true);
+    setError(null);
   };
 
   const handleSiteChange = (newSite: Site) => {
@@ -94,6 +102,7 @@ export default function Home() {
     setPosts([]);
     setPage(1);
     setHasMore(true);
+    setError(null);
   };
 
   const handleRatingChange = (newRating: 's' | 'q' | 'e' | null) => {
@@ -101,6 +110,17 @@ export default function Home() {
     setPosts([]);
     setPage(1);
     setHasMore(true);
+    setError(null);
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setHasMore(true);
+    if (posts.length === 0) {
+      loadPosts(1, true);
+    } else {
+      loadPosts(page);
+    }
   };
 
   return (
@@ -122,8 +142,13 @@ export default function Home() {
 
       <main className="app-main">
         {error && (
-          <div className="error-message">
-            <p>Error: {error}</p>
+          <div className="error-container">
+            <div className="error-message">
+              <p>Error: {error}</p>
+              <button onClick={handleRetry} className="retry-button">
+                Try Again
+              </button>
+            </div>
           </div>
         )}
 
@@ -154,7 +179,7 @@ export default function Home() {
           </div>
         )}
 
-        {!loading && posts.length === 0 && !error && (
+        {!loading && posts.length === 0 && !error && !isInitialLoad && (
           <div className="empty-message">
             <p>No images found</p>
           </div>
@@ -237,16 +262,42 @@ export default function Home() {
           to { transform: rotate(360deg); }
         }
 
-        .error-message,
+        .error-container {
+          display: flex;
+          justify-content: center;
+          padding: 48px;
+        }
+
+        .error-message {
+          text-align: center;
+          color: #ff6b6b;
+        }
+
+        .error-message p {
+          margin-bottom: 16px;
+        }
+
+        .retry-button {
+          padding: 10px 24px;
+          background: var(--accent);
+          color: white;
+          border: none;
+          border-radius: var(--radius-sm);
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s ease;
+        }
+
+        .retry-button:hover {
+          background: var(--accent-hover);
+        }
+
         .empty-message,
         .end-message {
           text-align: center;
           padding: 48px;
           color: var(--text-secondary);
-        }
-
-        .error-message {
-          color: #ff6b6b;
         }
 
         .load-more-trigger {
