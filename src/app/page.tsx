@@ -240,8 +240,8 @@ export default function Home() {
         .app-header {
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-subtle);
-          padding: 32px 24px;
-          padding-top: 72px;
+          padding: 24px 24px;
+          padding-top: 56px;
           position: sticky;
           top: 0;
           z-index: 100;
@@ -258,7 +258,7 @@ export default function Home() {
 
         .header-content {
           text-align: center;
-          margin-bottom: 24px;
+          margin-bottom: 16px;
         }
 
         .app-title {
