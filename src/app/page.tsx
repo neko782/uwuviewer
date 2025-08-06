@@ -241,7 +241,6 @@ export default function Home() {
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-subtle);
           padding: 24px 24px;
-          padding-top: 56px;
           position: sticky;
           top: 0;
           z-index: 100;
