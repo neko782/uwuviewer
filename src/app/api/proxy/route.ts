@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
@@ -9,14 +12,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Validate URL
+    try {
+      new URL(url);
+    } catch {
+      return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
+    }
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 seconds timeout (less than maxDuration)
 
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       signal: controller.signal,
+      // @ts-ignore - Next.js specific fetch options
+      next: {
+        revalidate: 300, // Cache for 5 minutes
+      },
     });
 
     clearTimeout(timeoutId);
@@ -35,10 +49,27 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'public, max-age=300',
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Proxy error:', error);
+    
+    // Handle timeout errors
+    if (error.name === 'AbortError') {
+      return NextResponse.json(
+        { error: 'Request timeout - server took too long to respond' },
+        { status: 504 }
+      );
+    }
+    
+    // Handle connection errors
+    if (error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+      return NextResponse.json(
+        { error: 'Connection timeout - could not reach the server' },
+        { status: 504 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch data' },
+      { error: error.message || 'Failed to fetch data' },
       { status: 500 }
     );
   }
