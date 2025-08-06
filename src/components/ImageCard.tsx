@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 interface ImageCardProps {
   post: MoebooruPost;
+  imageType?: 'preview' | 'sample';
   onClick: () => void;
 }
 
@@ -15,11 +16,12 @@ const ratingConfig = {
   e: { label: 'Explicit', color: '#f87171', bg: '#7f1d1d' }
 };
 
-export default function ImageCard({ post, onClick }: ImageCardProps) {
+export default function ImageCard({ post, imageType = 'preview', onClick }: ImageCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const rating = ratingConfig[post.rating as keyof typeof ratingConfig] || ratingConfig.s;
+  const imageUrl = imageType === 'sample' ? post.sample_url : post.preview_url;
 
   return (
     <div
@@ -57,7 +59,7 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
       
       {!imageError && (
         <img
-          src={proxyImageUrl(post.preview_url)}
+          src={proxyImageUrl(imageUrl)}
           alt={`Post ${post.id}`}
           className={`image-preview ${imageLoaded ? 'loaded' : ''}`}
           onLoad={() => setImageLoaded(true)}

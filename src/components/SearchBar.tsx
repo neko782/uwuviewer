@@ -9,9 +9,11 @@ interface SearchBarProps {
   onSiteChange: (site: Site) => void;
   onRatingChange: (rating: 's' | 'q' | 'e' | null) => void;
   onPageChange: (page: number) => void;
+  onImageTypeChange: (imageType: 'preview' | 'sample') => void;
   currentSite: Site;
   currentRating: 's' | 'q' | 'e' | null;
   currentPage: number;
+  currentImageType: 'preview' | 'sample';
   hasMore: boolean;
   loading: boolean;
   searchTags?: string;
@@ -22,9 +24,11 @@ export default function SearchBar({
   onSiteChange,
   onRatingChange,
   onPageChange,
+  onImageTypeChange,
   currentSite,
   currentRating,
   currentPage,
+  currentImageType,
   hasMore,
   loading,
   searchTags = ''
@@ -136,6 +140,26 @@ export default function SearchBar({
                     onClick={() => onRatingChange('e')}
                   >
                     Explicit
+                  </button>
+                </div>
+              </div>
+
+              <div className="filter-section">
+                <label className="filter-label">Image Quality</label>
+                <div className="filter-options">
+                  <button
+                    type="button"
+                    className={`filter-option ${currentImageType === 'preview' ? 'active' : ''}`}
+                    onClick={() => onImageTypeChange('preview')}
+                  >
+                    Preview (Fast)
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-option ${currentImageType === 'sample' ? 'active' : ''}`}
+                    onClick={() => onImageTypeChange('sample')}
+                  >
+                    Sample (HQ)
                   </button>
                 </div>
               </div>

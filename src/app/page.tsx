@@ -18,6 +18,7 @@ export default function Home() {
   const [rating, setRating] = useState<'s' | 'q' | 'e' | null>('s');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [headerHidden, setHeaderHidden] = useState(false);
+  const [imageType, setImageType] = useState<'preview' | 'sample'>('preview');
   
   const apiRef = useRef<MoebooruAPI>(new MoebooruAPI(site));
   const loadingRef = useRef(false);
@@ -95,6 +96,10 @@ export default function Home() {
     setError(null);
   };
 
+  const handleImageTypeChange = (newImageType: 'preview' | 'sample') => {
+    setImageType(newImageType);
+  };
+
   const handleRetry = () => {
     setError(null);
     setHasMore(true);
@@ -126,9 +131,11 @@ export default function Home() {
           onSiteChange={handleSiteChange}
           onRatingChange={handleRatingChange}
           onPageChange={handlePageChange}
+          onImageTypeChange={handleImageTypeChange}
           currentSite={site}
           currentRating={rating}
           currentPage={page}
+          currentImageType={imageType}
           hasMore={hasMore}
           loading={loading}
           searchTags={searchTags}
@@ -152,6 +159,7 @@ export default function Home() {
             <ImageCard
               key={post.id}
               post={post}
+              imageType={imageType}
               onClick={() => setSelectedPost(post)}
             />
           ))}
