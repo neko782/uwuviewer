@@ -175,7 +175,7 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
           background: var(--bg-primary);
           position: relative;
           min-height: 200px;
-          padding: 20px;
+          overflow: hidden;
         }
 
         .viewer-loading {
@@ -200,14 +200,13 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
         }
 
         .viewer-image {
-          max-width: calc(100% - 40px);
-          max-height: calc(100% - 40px);
+          max-width: 100%;
+          max-height: 100%;
           width: auto;
           height: auto;
           object-fit: contain;
           opacity: 0;
           transition: opacity 0.3s ease;
-          display: block;
         }
 
         .viewer-image.loaded {
@@ -307,25 +306,17 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
             flex-direction: column;
             max-height: 90vh;
             max-width: 95vw;
-            overflow: hidden;
           }
 
           .viewer-content {
-            flex: 1 1 auto;
+            flex: 1;
             min-height: 0;
-            max-height: 55vh;
-            padding: 10px;
-          }
-
-          .viewer-image {
-            max-width: calc(100% - 20px);
-            max-height: calc(100% - 20px);
+            max-height: 50vh;
           }
 
           .viewer-info {
             width: 100%;
-            flex: 0 1 auto;
-            max-height: 35vh;
+            max-height: 40vh;
             overflow-y: auto;
             border-left: none;
             border-top: 1px solid var(--border-subtle);
@@ -334,11 +325,11 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
 
         @media (max-width: 768px) and (orientation: portrait) {
           .viewer-content {
-            max-height: 50vh;
+            max-height: 45vh;
           }
           
           .viewer-info {
-            max-height: 40vh;
+            max-height: 35vh;
           }
         }
       `}</style>
