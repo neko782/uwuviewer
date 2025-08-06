@@ -74,6 +74,51 @@ export default function SearchBar({
     <div className="search-container">
       <div className="search-row">
         <form onSubmit={handleSubmit} className="search-form">
+        <div className="site-selector desktop-only" ref={siteDropdownRef}>
+          <button
+            type="button"
+            className="site-selector-button"
+            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
+          >
+            <Image
+              src={currentSiteData.icon}
+              alt={currentSiteData.label}
+              width={16}
+              height={16}
+              className="site-icon"
+            />
+            <span className="site-name-desktop">{currentSiteData.label}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="dropdown-arrow">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          
+          {showSiteDropdown && (
+            <div className="site-dropdown">
+              {sites.map((site) => (
+                <button
+                  key={site.value}
+                  type="button"
+                  className={`site-option ${currentSite === site.value ? 'active' : ''}`}
+                  onClick={() => {
+                    onSiteChange(site.value);
+                    setShowSiteDropdown(false);
+                  }}
+                >
+                  <Image
+                    src={site.icon}
+                    alt={site.label}
+                    width={16}
+                    height={16}
+                    className="site-icon"
+                  />
+                  <span>{site.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        
         <input
           type="text"
           value={searchInput}
@@ -161,16 +206,18 @@ export default function SearchBar({
         </div>
       </form>
       
-      <Pagination
-        currentPage={currentPage}
-        hasMore={hasMore}
-        loading={loading}
-        onPageChange={onPageChange}
-      />
+      <div className="desktop-only">
+        <Pagination
+          currentPage={currentPage}
+          hasMore={hasMore}
+          loading={loading}
+          onPageChange={onPageChange}
+        />
+      </div>
       </div>
 
-      <div className="bottom-row">
-        <div className="site-selector" ref={siteDropdownRef}>
+      <div className="bottom-row mobile-only">
+        <div className="site-selector mobile-only">
           <button
             type="button"
             className="site-selector-button"
@@ -238,6 +285,14 @@ export default function SearchBar({
           justify-content: center;
         }
 
+        .desktop-only {
+          display: block;
+        }
+
+        .mobile-only {
+          display: none;
+        }
+
         .bottom-row {
           display: none;
         }
@@ -269,6 +324,10 @@ export default function SearchBar({
           white-space: nowrap;
         }
 
+        .desktop-only .site-selector-button {
+          padding: 12px;
+        }
+
         .site-selector-button:hover {
           background: var(--bg-tertiary);
           border-color: var(--accent-dim);
@@ -282,6 +341,10 @@ export default function SearchBar({
         .site-name {
           font-size: 14px;
           font-weight: 500;
+        }
+
+        .site-name-desktop {
+          display: none;
         }
 
         .dropdown-arrow {
@@ -452,14 +515,26 @@ export default function SearchBar({
           border-color: var(--accent-hover);
         }
 
+        @media (min-width: 769px) {
+          .site-name-desktop {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+          }
+        }
+
         @media (max-width: 768px) {
+          .desktop-only {
+            display: none !important;
+          }
+
+          .mobile-only {
+            display: block;
+          }
+
           .search-row {
             flex-direction: column;
             gap: 12px;
-          }
-
-          .search-row > :global(.pagination-container) {
-            display: none;
           }
 
           .search-form {
