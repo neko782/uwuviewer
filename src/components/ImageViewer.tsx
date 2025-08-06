@@ -176,7 +176,7 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
           position: relative;
           min-height: 400px;
           max-height: 70vh;
-          overflow: hidden;
+          padding: 20px;
         }
 
         .viewer-loading {
@@ -201,13 +201,14 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
         }
 
         .viewer-image {
-          max-width: 100%;
-          max-height: 100%;
+          max-width: calc(100% - 40px);
+          max-height: calc(100% - 40px);
           width: auto;
           height: auto;
           object-fit: contain;
           opacity: 0;
           transition: opacity 0.3s ease;
+          display: block;
         }
 
         .viewer-image.loaded {
@@ -310,6 +311,12 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
 
           .viewer-content {
             max-height: 50vh;
+            padding: 10px;
+          }
+
+          .viewer-image {
+            max-width: calc(100% - 20px);
+            max-height: calc(100% - 20px);
           }
 
           .viewer-info {
