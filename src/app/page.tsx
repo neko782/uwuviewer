@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MoebooruAPI, MoebooruPost, Site } from '@/lib/api';
+import { ImageBoardAPI, UnifiedPost, Site } from '@/lib/api';
 import ImageCard from '@/components/ImageCard';
 import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
 
 export default function Home() {
-  const [posts, setPosts] = useState<MoebooruPost[]>([]);
+  const [posts, setPosts] = useState<UnifiedPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPost, setSelectedPost] = useState<MoebooruPost | null>(null);
+  const [selectedPost, setSelectedPost] = useState<UnifiedPost | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [searchTags, setSearchTags] = useState('');
@@ -19,8 +19,15 @@ export default function Home() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [headerHidden, setHeaderHidden] = useState(false);
   const [imageType, setImageType] = useState<'preview' | 'sample'>('preview');
+  const [apiKey, setApiKey] = useState(() => {
+    // Load API key from localStorage on initial load
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('gelbooru_api_key') || '';
+    }
+    return '';
+  });
   
-  const apiRef = useRef<MoebooruAPI>(new MoebooruAPI(site));
+  const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey));
   const loadingRef = useRef(false);
 
   const loadPosts = useCallback(async (pageNum: number, reset = false) => {
@@ -55,13 +62,13 @@ export default function Home() {
   }, [searchTags, rating]);
 
   useEffect(() => {
-    apiRef.current = new MoebooruAPI(site);
+    apiRef.current = new ImageBoardAPI(site, apiKey);
     setPosts([]);
     setPage(1);
     setHasMore(true);
     setIsInitialLoad(true);
     loadPosts(1, true);
-  }, [site, searchTags, rating, loadPosts]);
+  }, [site, searchTags, rating, apiKey, loadPosts]);
 
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage !== page && !loadingRef.current) {
@@ -100,6 +107,14 @@ export default function Home() {
     setImageType(newImageType);
   };
 
+  const handleApiKeyChange = (newApiKey: string) => {
+    setApiKey(newApiKey);
+    // Save API key to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('gelbooru_api_key', newApiKey);
+    }
+  };
+
   const handleRetry = () => {
     setError(null);
     setHasMore(true);
@@ -131,10 +146,12 @@ export default function Home() {
           onRatingChange={handleRatingChange}
           onPageChange={handlePageChange}
           onImageTypeChange={handleImageTypeChange}
+          onApiKeyChange={handleApiKeyChange}
           currentSite={site}
           currentRating={rating}
           currentPage={page}
           currentImageType={imageType}
+          currentApiKey={apiKey}
           hasMore={hasMore}
           loading={loading}
           searchTags={searchTags}

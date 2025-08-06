@@ -1,11 +1,11 @@
 'use client';
 
-import { MoebooruPost } from '@/lib/api';
+import { UnifiedPost } from '@/lib/api';
 import { proxyImageUrl } from '@/lib/imageProxy';
 import { useEffect, useState } from 'react';
 
 interface ImageViewerProps {
-  post: MoebooruPost | null;
+  post: UnifiedPost | null;
   onClose: () => void;
   onTagClick?: (tag: string) => void;
 }

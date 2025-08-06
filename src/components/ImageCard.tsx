@@ -1,11 +1,11 @@
 'use client';
 
-import { MoebooruPost } from '@/lib/api';
+import { UnifiedPost } from '@/lib/api';
 import { proxyImageUrl } from '@/lib/imageProxy';
 import { useState } from 'react';
 
 interface ImageCardProps {
-  post: MoebooruPost;
+  post: UnifiedPost;
   imageType?: 'preview' | 'sample';
   onClick: () => void;
 }

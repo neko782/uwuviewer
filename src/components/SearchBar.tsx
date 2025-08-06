@@ -11,10 +11,12 @@ interface SearchBarProps {
   onRatingChange: (rating: 's' | 'q' | 'e' | null) => void;
   onPageChange: (page: number) => void;
   onImageTypeChange: (imageType: 'preview' | 'sample') => void;
+  onApiKeyChange: (apiKey: string) => void;
   currentSite: Site;
   currentRating: 's' | 'q' | 'e' | null;
   currentPage: number;
   currentImageType: 'preview' | 'sample';
+  currentApiKey: string;
   hasMore: boolean;
   loading: boolean;
   searchTags?: string;
@@ -26,10 +28,12 @@ export default function SearchBar({
   onRatingChange,
   onPageChange,
   onImageTypeChange,
+  onApiKeyChange,
   currentSite,
   currentRating,
   currentPage,
   currentImageType,
+  currentApiKey,
   hasMore,
   loading,
   searchTags = ''
@@ -37,17 +41,24 @@ export default function SearchBar({
   const [searchInput, setSearchInput] = useState(searchTags);
   const [showFilters, setShowFilters] = useState(false);
   const [showSiteDropdown, setShowSiteDropdown] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
 
-  const sites: { value: Site; label: string; icon: string }[] = [
+  const sites: { value: Site; label: string; icon: string; needsApiKey?: boolean }[] = [
     { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico' },
-    { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico' }
+    { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico' },
+    { value: 'gelbooru.com', label: 'Gelbooru', icon: '/globe.svg', needsApiKey: true }
   ];
 
   useEffect(() => {
     setSearchInput(searchTags);
   }, [searchTags]);
+
+  useEffect(() => {
+    setApiKeyInput(currentApiKey);
+  }, [currentApiKey]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -201,6 +212,19 @@ export default function SearchBar({
                   </button>
                 </div>
               </div>
+
+              {currentSite === 'gelbooru.com' && (
+                <div className="filter-section">
+                  <label className="filter-label">API Key</label>
+                  <button
+                    type="button"
+                    className="api-key-button"
+                    onClick={() => setShowApiKeyModal(true)}
+                  >
+                    {currentApiKey ? 'API Key Set ✓' : 'Set API Key'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -564,6 +588,144 @@ export default function SearchBar({
           .bottom-row > :global(.pagination-container) {
             flex-shrink: 0;
           }
+        }
+
+        .api-key-button {
+          padding: 6px 12px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          color: var(--text-secondary);
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+        }
+
+        .api-key-button:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+      `}</style>
+
+      {showApiKeyModal && (
+        <div className="modal-overlay" onClick={() => setShowApiKeyModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Gelbooru API Key</h3>
+            <p className="modal-description">
+              Enter your Gelbooru API credentials. Format: &api_key=xxx&user_id=yyy
+            </p>
+            <input
+              type="text"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="&api_key=your_key&user_id=your_id"
+              className="api-key-input"
+            />
+            <div className="modal-buttons">
+              <button
+                onClick={() => {
+                  onApiKeyChange(apiKeyInput);
+                  setShowApiKeyModal(false);
+                }}
+                className="modal-button save"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setShowApiKeyModal(false)}
+                className="modal-button cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .modal-content {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          padding: 24px;
+          max-width: 500px;
+          width: 90%;
+        }
+
+        .modal-content h3 {
+          margin: 0 0 12px 0;
+          color: var(--text-primary);
+          font-size: 18px;
+        }
+
+        .modal-description {
+          color: var(--text-secondary);
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+
+        .api-key-input {
+          width: 100%;
+          padding: 12px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          color: var(--text-primary);
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+
+        .api-key-input:focus {
+          outline: none;
+          border-color: var(--accent-dim);
+        }
+
+        .modal-buttons {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .modal-button {
+          padding: 8px 16px;
+          border: none;
+          border-radius: var(--radius-sm);
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .modal-button.save {
+          background: var(--accent);
+          color: white;
+        }
+
+        .modal-button.save:hover {
+          background: var(--accent-hover);
+        }
+
+        .modal-button.cancel {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+
+        .modal-button.cancel:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
         }
       `}</style>
     </div>
