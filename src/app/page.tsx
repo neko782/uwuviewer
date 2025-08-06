@@ -13,8 +13,8 @@ export default function Home() {
   const [selectedPost, setSelectedPost] = useState<UnifiedPost | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [searchTags, setSearchTags] = useState('');
   const [site, setSite] = useState<Site>('yande.re');
+  const [searchTags, setSearchTags] = useState('rating:safe'); // Initialize with default rating for yande.re
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [headerHidden, setHeaderHidden] = useState(false);
   const [imageType, setImageType] = useState<'preview' | 'sample'>('preview');
@@ -91,6 +91,17 @@ export default function Home() {
     setPage(1);
     setHasMore(true);
     setError(null);
+    
+    // Update search tags with the new site's default rating if current search is empty or only a rating
+    const currentTags = searchTags.trim();
+    const isOnlyRating = currentTags === 'rating:safe' || 
+                         currentTags === 'rating:general' || 
+                         currentTags === '';
+    
+    if (isOnlyRating) {
+      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : 'rating:safe';
+      setSearchTags(defaultRating);
+    }
   };
 
 
