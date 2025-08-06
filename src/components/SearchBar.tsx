@@ -325,7 +325,8 @@ export default function SearchBar({
         }
 
         .desktop-only .site-selector-button {
-          padding: 12px;
+          padding: 12px 16px;
+          min-height: 44px;
         }
 
         .site-selector-button:hover {
@@ -393,8 +394,9 @@ export default function SearchBar({
         }
 
         .site-option.active {
-          background: var(--accent-dim);
-          color: var(--accent);
+          background: var(--accent);
+          color: white;
+          font-weight: 500;
         }
 
         .search-input {
@@ -517,9 +519,7 @@ export default function SearchBar({
 
         @media (min-width: 769px) {
           .site-name-desktop {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
+            display: none;
           }
         }
 
