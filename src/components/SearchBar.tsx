@@ -334,24 +334,11 @@ export default function SearchBar({
           border-color: var(--accent-dim);
         }
 
-        .site-icon {
-          display: block;
-          flex-shrink: 0;
+        img.site-icon {
           width: 16px;
           height: 16px;
-          min-width: 16px;
-          min-height: 16px;
           max-width: 16px;
           max-height: 16px;
-        }
-        
-        .site-icon img {
-          width: 16px !important;
-          height: 16px !important;
-          min-width: 16px !important;
-          min-height: 16px !important;
-          max-width: 16px !important;
-          max-height: 16px !important;
         }
 
         .site-name {
