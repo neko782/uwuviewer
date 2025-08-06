@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Agent } from 'undici';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Create a custom agent with longer timeouts
+const agent = new Agent({
+  connectTimeout: 60000, // 60 seconds connection timeout
+  bodyTimeout: 60000,    // 60 seconds body timeout
+  headersTimeout: 60000, // 60 seconds headers timeout
+});
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -21,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 seconds timeout (less than maxDuration)
+    const timeoutId = setTimeout(() => controller.abort(), 58000); // 58 seconds timeout (less than maxDuration)
 
     const response = await fetch(url, {
       headers: {
@@ -29,6 +37,8 @@ export async function GET(request: NextRequest) {
         'Referer': validatedUrl.origin,
       },
       signal: controller.signal,
+      // @ts-ignore - undici dispatcher option
+      dispatcher: agent,
       // @ts-ignore - Next.js specific fetch options
       next: {
         revalidate: 3600, // Cache for 1 hour
