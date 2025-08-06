@@ -204,6 +204,7 @@ export default function Home() {
 
       <ImageViewer
         post={selectedPost}
+        site={site}
         onClose={() => setSelectedPost(null)}
         onTagClick={(tag) => {
           setSearchTags(tag);

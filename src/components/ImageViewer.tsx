@@ -1,17 +1,19 @@
 'use client';
 
-import { UnifiedPost } from '@/lib/api';
+import { UnifiedPost, Site } from '@/lib/api';
 import { proxyImageUrl } from '@/lib/imageProxy';
 import { useEffect, useState } from 'react';
 
 interface ImageViewerProps {
   post: UnifiedPost | null;
+  site: Site;
   onClose: () => void;
   onTagClick?: (tag: string) => void;
 }
 
-export default function ImageViewer({ post, onClose, onTagClick }: ImageViewerProps) {
+export default function ImageViewer({ post, site, onClose, onTagClick }: ImageViewerProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<'proxied' | 'original'>('proxied');
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -31,6 +33,18 @@ export default function ImageViewer({ post, onClose, onTagClick }: ImageViewerPr
 
   if (!post) return null;
 
+  const getPostUrl = () => {
+    if (site === 'gelbooru.com') {
+      return `https://gelbooru.com/index.php?page=post&s=view&id=${post.id}`;
+    } else {
+      return `https://${site}/post/show/${post.id}`;
+    }
+  };
+
+  const currentImageUrl = viewMode === 'proxied' 
+    ? proxyImageUrl(post.sample_url || post.file_url)
+    : (post.sample_url || post.file_url);
+
   return (
     <div className="viewer-overlay" onClick={onClose}>
       <div className="viewer-container" onClick={(e) => e.stopPropagation()}>
@@ -48,10 +62,16 @@ export default function ImageViewer({ post, onClose, onTagClick }: ImageViewerPr
           )}
           
           <img
-            src={proxyImageUrl(post.sample_url || post.file_url)}
+            src={currentImageUrl}
             alt={`Post ${post.id}`}
             className={`viewer-image ${imageLoaded ? 'loaded' : ''}`}
             onLoad={() => setImageLoaded(true)}
+            onError={(e) => {
+              if (viewMode === 'original') {
+                console.error('Failed to load original image, falling back to proxied');
+                setViewMode('proxied');
+              }
+            }}
           />
         </div>
 
@@ -103,14 +123,68 @@ export default function ImageViewer({ post, onClose, onTagClick }: ImageViewerPr
           </div>
 
           <div className="info-actions">
-            <a
-              href={proxyImageUrl(post.file_url)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="action-button"
-            >
-              View Original
-            </a>
+            <div className="view-toggle">
+              <button
+                className={`toggle-button ${viewMode === 'proxied' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('proxied');
+                  setImageLoaded(false);
+                }}
+              >
+                Proxied
+              </button>
+              <button
+                className={`toggle-button ${viewMode === 'original' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('original');
+                  setImageLoaded(false);
+                }}
+              >
+                Original
+              </button>
+            </div>
+            
+            <div className="action-buttons">
+              <a
+                href={post.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="action-button secondary"
+                title="View original image file"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Original File
+              </a>
+              
+              <a
+                href={proxyImageUrl(post.file_url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="action-button secondary"
+                title="View proxied image"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Proxied File
+              </a>
+              
+              <a
+                href={getPostUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="action-button primary"
+                title="View on original site"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                View Post
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -299,20 +373,83 @@ export default function ImageViewer({ post, onClose, onTagClick }: ImageViewerPr
           border-top: 1px solid var(--border-subtle);
         }
 
+        .view-toggle {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 16px;
+          background: var(--bg-tertiary);
+          padding: 4px;
+          border-radius: var(--radius-sm);
+        }
+
+        .toggle-button {
+          flex: 1;
+          padding: 8px 16px;
+          background: transparent;
+          color: var(--text-secondary);
+          border: none;
+          border-radius: calc(var(--radius-sm) - 2px);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-family: inherit;
+        }
+
+        .toggle-button.active {
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-button:hover:not(.active) {
+          color: var(--text-primary);
+        }
+
+        .action-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
         .action-button {
-          display: inline-block;
-          padding: 10px 20px;
-          background: var(--accent);
-          color: white;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 16px;
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
           border-radius: var(--radius-sm);
           text-decoration: none;
           font-size: 14px;
           font-weight: 500;
-          transition: background 0.2s ease;
+          transition: all 0.2s ease;
+          border: 1px solid var(--border-subtle);
         }
 
         .action-button:hover {
+          background: var(--bg-hover);
+          border-color: var(--accent);
+        }
+
+        .action-button.primary {
+          background: var(--accent);
+          color: white;
+          border-color: var(--accent);
+        }
+
+        .action-button.primary:hover {
           background: var(--accent-hover);
+          border-color: var(--accent-hover);
+        }
+
+        .action-button.secondary {
+          background: var(--bg-tertiary);
+        }
+
+        .action-button svg {
+          flex-shrink: 0;
         }
 
         @media (max-width: 768px) {
