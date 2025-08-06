@@ -17,6 +17,7 @@ export default function Home() {
   const [site, setSite] = useState<Site>('yande.re');
   const [rating, setRating] = useState<'s' | 'q' | 'e' | null>('s');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [headerHidden, setHeaderHidden] = useState(false);
   
   const apiRef = useRef<MoebooruAPI>(new MoebooruAPI(site));
   const loadingRef = useRef(false);
@@ -106,7 +107,15 @@ export default function Home() {
 
   return (
     <div className="app-container">
-      <header className="app-header">
+      <button 
+        className={`header-toggle ${headerHidden ? 'floating' : ''}`}
+        onClick={() => setHeaderHidden(!headerHidden)}
+        aria-label={headerHidden ? 'Show header' : 'Hide header'}
+      >
+        {headerHidden ? '☰' : '✕'}
+      </button>
+      
+      <header className={`app-header ${headerHidden ? 'hidden' : ''}`}>
         <div className="header-content">
           <h1 className="app-title">Moebooru Viewer</h1>
           <p className="app-subtitle">Browse images from {site}</p>
@@ -186,6 +195,41 @@ export default function Home() {
           background: var(--bg-primary);
         }
 
+        .header-toggle {
+          position: fixed;
+          top: 16px;
+          left: 16px;
+          z-index: 101;
+          width: 40px;
+          height: 40px;
+          border-radius: var(--radius-sm);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-subtle);
+          color: var(--text-primary);
+          font-size: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .header-toggle:hover {
+          background: var(--bg-tertiary);
+          transform: scale(1.05);
+        }
+
+        .header-toggle.floating {
+          background: var(--accent);
+          color: white;
+          border-color: var(--accent);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-toggle.floating:hover {
+          background: var(--accent-hover);
+        }
+
         .app-header {
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-subtle);
@@ -195,6 +239,13 @@ export default function Home() {
           z-index: 100;
           backdrop-filter: blur(10px);
           background: rgba(36, 36, 36, 0.95);
+          transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .app-header.hidden {
+          transform: translateY(-100%);
+          opacity: 0;
+          pointer-events: none;
         }
 
         .header-content {
