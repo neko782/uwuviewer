@@ -337,6 +337,9 @@ export default function SearchBar({
         .site-icon {
           display: block;
           flex-shrink: 0;
+          width: 16px !important;
+          height: 16px !important;
+          object-fit: contain;
         }
 
         .site-name {
