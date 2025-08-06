@@ -41,7 +41,6 @@ export type Site = 'yande.re' | 'konachan.com';
 
 export class MoebooruAPI {
   private baseUrl: string;
-  private corsProxy = 'https://corsproxy.io/?';
   private timeout = 30000; // 30 seconds timeout
 
   constructor(site: Site = 'yande.re') {
@@ -89,7 +88,7 @@ export class MoebooruAPI {
         : `rating:${params.rating}`);
     }
 
-    const url = `${this.corsProxy}${encodeURIComponent(`${this.baseUrl}/post.json?${queryParams}`)}`;
+    const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/post.json?${queryParams}`)}`;
     const response = await this.fetchWithTimeout(url);
     
     if (!response.ok) {
@@ -100,7 +99,7 @@ export class MoebooruAPI {
   }
 
   async getPost(id: number): Promise<MoebooruPost> {
-    const url = `${this.corsProxy}${encodeURIComponent(`${this.baseUrl}/post/show/${id}.json`)}`;
+    const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/post/show/${id}.json`)}`;
     const response = await this.fetchWithTimeout(url);
     
     if (!response.ok) {
@@ -111,7 +110,7 @@ export class MoebooruAPI {
   }
 
   async searchTags(query: string): Promise<unknown[]> {
-    const url = `${this.corsProxy}${encodeURIComponent(
+    const url = `/api/proxy?url=${encodeURIComponent(
       `${this.baseUrl}/tag.json?name=${encodeURIComponent(query)}*&limit=10`
     )}`;
     const response = await this.fetchWithTimeout(url);

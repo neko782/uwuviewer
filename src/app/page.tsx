@@ -15,7 +15,7 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true);
   const [searchTags, setSearchTags] = useState('');
   const [site, setSite] = useState<Site>('yande.re');
-  const [rating, setRating] = useState<'s' | 'q' | 'e' | null>(null);
+  const [rating, setRating] = useState<'s' | 'q' | 'e' | null>('s');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   const apiRef = useRef<MoebooruAPI>(new MoebooruAPI(site));

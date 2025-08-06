@@ -1,6 +1,7 @@
 'use client';
 
 import { MoebooruPost } from '@/lib/api';
+import { proxyImageUrl } from '@/lib/imageProxy';
 import { useEffect, useState } from 'react';
 
 interface ImageViewerProps {
@@ -46,7 +47,7 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
           )}
           
           <img
-            src={post.sample_url || post.file_url}
+            src={proxyImageUrl(post.sample_url || post.file_url)}
             alt={`Post ${post.id}`}
             className={`viewer-image ${imageLoaded ? 'loaded' : ''}`}
             onLoad={() => setImageLoaded(true)}
@@ -93,7 +94,7 @@ export default function ImageViewer({ post, onClose }: ImageViewerProps) {
 
           <div className="info-actions">
             <a
-              href={post.file_url}
+              href={proxyImageUrl(post.file_url)}
               target="_blank"
               rel="noopener noreferrer"
               className="action-button"

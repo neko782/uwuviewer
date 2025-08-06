@@ -1,6 +1,7 @@
 'use client';
 
 import { MoebooruPost } from '@/lib/api';
+import { proxyImageUrl } from '@/lib/imageProxy';
 import { useState } from 'react';
 
 interface ImageCardProps {
@@ -27,7 +28,7 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
       
       {!imageError && (
         <img
-          src={post.preview_url}
+          src={proxyImageUrl(post.preview_url)}
           alt={`Post ${post.id}`}
           className={`image-preview ${imageLoaded ? 'loaded' : ''}`}
           onLoad={() => setImageLoaded(true)}
