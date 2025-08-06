@@ -19,12 +19,10 @@ export default function Home() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   const apiRef = useRef<MoebooruAPI>(new MoebooruAPI(site));
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
 
   const loadPosts = useCallback(async (pageNum: number, reset = false) => {
-    if (loadingRef.current) return;
+    if (loadingRef.current && !reset) return;
     
     loadingRef.current = true;
     setLoading(true);
@@ -41,12 +39,13 @@ export default function Home() {
       if (newPosts.length === 0) {
         setHasMore(false);
       } else {
-        setPosts(prev => reset ? newPosts : [...prev, ...newPosts]);
+        setPosts(reset ? newPosts : [...newPosts]);
+        setHasMore(newPosts.length === 30);
       }
       setIsInitialLoad(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load posts');
-      setHasMore(false); // Stop trying to load more on error
+      setHasMore(false);
     } finally {
       setLoading(false);
       loadingRef.current = false;
@@ -62,32 +61,14 @@ export default function Home() {
     loadPosts(1, true);
   }, [site, searchTags, rating, loadPosts]);
 
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage !== page && !loadingRef.current) {
+      setPage(newPage);
+      setPosts([]);
+      loadPosts(newPage, true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingRef.current && !error) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          loadPosts(nextPage);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [page, hasMore, error, loadPosts]);
+  }, [page, loadPosts]);
 
   const handleSearch = (tags: string) => {
     setSearchTags(tags);
@@ -135,8 +116,12 @@ export default function Home() {
           onSearch={handleSearch}
           onSiteChange={handleSiteChange}
           onRatingChange={handleRatingChange}
+          onPageChange={handlePageChange}
           currentSite={site}
           currentRating={rating}
+          currentPage={page}
+          hasMore={hasMore}
+          loading={loading}
         />
       </header>
 
@@ -167,10 +152,6 @@ export default function Home() {
             <div className="loading-spinner" />
             <p>Loading images...</p>
           </div>
-        )}
-
-        {hasMore && !loading && (
-          <div ref={loadMoreRef} className="load-more-trigger" />
         )}
 
         {!hasMore && posts.length > 0 && (
@@ -298,10 +279,6 @@ export default function Home() {
           text-align: center;
           padding: 48px;
           color: var(--text-secondary);
-        }
-
-        .load-more-trigger {
-          height: 100px;
         }
 
         @media (max-width: 768px) {

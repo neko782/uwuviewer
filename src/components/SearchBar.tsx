@@ -2,21 +2,30 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Site } from '@/lib/api';
+import Pagination from './Pagination';
 
 interface SearchBarProps {
   onSearch: (tags: string) => void;
   onSiteChange: (site: Site) => void;
   onRatingChange: (rating: 's' | 'q' | 'e' | null) => void;
+  onPageChange: (page: number) => void;
   currentSite: Site;
   currentRating: 's' | 'q' | 'e' | null;
+  currentPage: number;
+  hasMore: boolean;
+  loading: boolean;
 }
 
 export default function SearchBar({
   onSearch,
   onSiteChange,
   onRatingChange,
+  onPageChange,
   currentSite,
-  currentRating
+  currentRating,
+  currentPage,
+  hasMore,
+  loading
 }: SearchBarProps) {
   const [searchInput, setSearchInput] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -40,7 +49,8 @@ export default function SearchBar({
 
   return (
     <div className="search-container">
-      <form onSubmit={handleSubmit} className="search-form">
+      <div className="search-row">
+        <form onSubmit={handleSubmit} className="search-form">
         <input
           type="text"
           value={searchInput}
@@ -127,18 +137,37 @@ export default function SearchBar({
           )}
         </div>
       </form>
+      
+      <Pagination
+        currentPage={currentPage}
+        hasMore={hasMore}
+        loading={loading}
+        onPageChange={onPageChange}
+      />
+      </div>
 
       <style jsx>{`
         .search-container {
           width: 100%;
-          max-width: 600px;
+          max-width: 800px;
           margin: 0 auto;
+        }
+
+        .search-row {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex-wrap: wrap;
+          justify-content: center;
         }
 
         .search-form {
           display: flex;
           gap: 8px;
           position: relative;
+          flex: 1;
+          min-width: 300px;
+          max-width: 500px;
         }
 
         .search-input {
@@ -257,6 +286,17 @@ export default function SearchBar({
         .filter-option.active:hover {
           background: var(--accent-hover);
           border-color: var(--accent-hover);
+        }
+
+        @media (max-width: 768px) {
+          .search-row {
+            flex-direction: column;
+            gap: 12px;
+          }
+
+          .search-form {
+            min-width: 100%;
+          }
         }
       `}</style>
     </div>
