@@ -304,10 +304,12 @@ export default function SearchBar({
           flex: 1;
           min-width: 300px;
           max-width: 500px;
+          align-items: stretch;
         }
 
         .site-selector {
           position: relative;
+          display: flex;
         }
 
         .site-selector-button {
@@ -322,11 +324,7 @@ export default function SearchBar({
           cursor: pointer;
           transition: border-color 0.2s ease, background 0.2s ease;
           white-space: nowrap;
-        }
-
-        .desktop-only .site-selector-button {
-          padding: 12px 16px;
-          min-height: 44px;
+          height: 100%;
         }
 
         .site-selector-button:hover {
@@ -431,6 +429,9 @@ export default function SearchBar({
           color: var(--text-secondary);
           cursor: pointer;
           transition: background 0.2s ease, color 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .search-button:hover,
