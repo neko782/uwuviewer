@@ -122,8 +122,7 @@ export default function Home() {
       
       <header className={`app-header ${headerHidden ? 'hidden' : ''}`}>
         <div className="header-content">
-          <h1 className="app-title">Moebooru Viewer</h1>
-          <p className="app-subtitle">Browse images from {site}</p>
+          <h1 className="app-title">uwuviewer</h1>
         </div>
         
         <SearchBar
@@ -242,6 +241,7 @@ export default function Home() {
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-subtle);
           padding: 32px 24px;
+          padding-top: 72px;
           position: sticky;
           top: 0;
           z-index: 100;
@@ -262,7 +262,7 @@ export default function Home() {
         }
 
         .app-title {
-          font-size: 28px;
+          font-size: 20px;
           font-weight: 700;
           color: var(--text-primary);
           margin-bottom: 4px;
