@@ -49,7 +49,7 @@ export default function SearchBar({
   const sites: { value: Site; label: string; icon: string; needsApiKey?: boolean }[] = [
     { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico' },
     { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico' },
-    { value: 'gelbooru.com', label: 'Gelbooru', icon: '/globe.svg', needsApiKey: true }
+    { value: 'gelbooru.com', label: 'Gelbooru', icon: '/gelbooru.ico', needsApiKey: true }
   ];
 
   useEffect(() => {

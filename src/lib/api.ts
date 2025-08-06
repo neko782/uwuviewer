@@ -204,9 +204,9 @@ export class ImageBoardAPI {
 
   private denormalizeRatingForGelbooru(rating: string): string {
     // Convert our standard ratings to Gelbooru format
-    // Gelbooru expects full words like "questionable", not "q"
+    // Gelbooru uses "general" instead of "safe"
     const ratingMap: { [key: string]: string } = {
-      's': 'safe',
+      's': 'general',
       'q': 'questionable',
       'e': 'explicit',
     };
