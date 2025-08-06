@@ -9,9 +9,17 @@ interface ImageCardProps {
   onClick: () => void;
 }
 
+const ratingConfig = {
+  s: { label: 'Safe', color: '#4ade80', bg: '#166534' },
+  q: { label: 'Questionable', color: '#fbbf24', bg: '#713f12' },
+  e: { label: 'Explicit', color: '#f87171', bg: '#7f1d1d' }
+};
+
 export default function ImageCard({ post, onClick }: ImageCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  const rating = ratingConfig[post.rating as keyof typeof ratingConfig] || ratingConfig.s;
 
   return (
     <div
@@ -19,7 +27,32 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
       onClick={onClick}
     >
       {!imageLoaded && !imageError && (
-        <div className="image-placeholder" />
+        <div className="image-placeholder">
+          <div className="loading-spinner">
+            <svg className="spinner-icon" viewBox="0 0 24 24" fill="none">
+              <circle 
+                className="spinner-track"
+                cx="12" 
+                cy="12" 
+                r="10" 
+                stroke="currentColor" 
+                strokeWidth="3"
+                opacity="0.25"
+              />
+              <circle 
+                className="spinner-fill"
+                cx="12" 
+                cy="12" 
+                r="10" 
+                stroke="currentColor" 
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray="60"
+                strokeDashoffset="15"
+              />
+            </svg>
+          </div>
+        </div>
       )}
       
       {!imageError && (
@@ -39,9 +72,15 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
         </div>
       )}
 
+      <div className="rating-badge" style={{ 
+        backgroundColor: rating.bg,
+        color: rating.color
+      }}>
+        {rating.label}
+      </div>
+
       <div className="image-overlay">
         <div className="image-info">
-          <span className="image-rating">{post.rating.toUpperCase()}</span>
           <span className="image-score">★ {post.score}</span>
         </div>
       </div>
@@ -72,18 +111,31 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
         .image-placeholder {
           position: absolute;
           inset: 0;
-          background: linear-gradient(
-            135deg,
-            var(--bg-secondary) 0%,
-            var(--bg-tertiary) 50%,
-            var(--bg-secondary) 100%
-          );
-          animation: shimmer 2s infinite;
+          background: var(--bg-secondary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
-        @keyframes shimmer {
-          0% { background-position: -100% 0; }
-          100% { background-position: 200% 0; }
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          color: var(--text-dim);
+        }
+
+        .spinner-icon {
+          width: 100%;
+          height: 100%;
+          animation: spin 1s linear infinite;
+        }
+
+        .spinner-fill {
+          transform-origin: center;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
 
         .image-preview {
@@ -122,6 +174,20 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
           pointer-events: none;
         }
 
+        .rating-badge {
+          position: absolute;
+          bottom: 8px;
+          left: 8px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          z-index: 1;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
         .image-info {
           position: absolute;
           bottom: 0;
@@ -129,18 +195,11 @@ export default function ImageCard({ post, onClick }: ImageCardProps) {
           right: 0;
           padding: 12px;
           display: flex;
-          justify-content: space-between;
+          justify-content: flex-end;
           align-items: center;
           color: var(--text-primary);
           font-size: 12px;
           font-weight: 500;
-        }
-
-        .image-rating {
-          padding: 2px 6px;
-          background: var(--bg-tertiary);
-          border-radius: 4px;
-          opacity: 0.9;
         }
 
         .image-score {
