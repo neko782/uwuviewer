@@ -1,10 +1,17 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Site } from '@/lib/api';
 import Image from 'next/image';
 import Pagination from './Pagination';
+
+interface TagSuggestion {
+  name: string;
+  count: number;
+  type: number;
+  color: string;
+}
 
 interface SearchBarProps {
   onSearch: (tags: string) => void;
@@ -47,9 +54,16 @@ export default function SearchBar({
   const [showSiteDropdown, setShowSiteDropdown] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [cursorPosition, setCursorPosition] = useState(0);
   const filterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSiteDropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setSearchInput(searchTags);
@@ -74,6 +88,105 @@ export default function SearchBar({
     setApiKeyInput(currentApiKey);
   }, [currentApiKey]);
 
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // Only fetch for yande.re and konachan
+    if (currentSite !== 'yande.re' && currentSite !== 'konachan.com') {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}&apiKey=${currentApiKey}`
+      );
+      const data = await response.json();
+      setSuggestions(data.suggestions || []);
+      setShowSuggestions(data.suggestions && data.suggestions.length > 0);
+      setSelectedSuggestionIndex(-1);
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [currentSite, currentApiKey]);
+
+  const getTagAtCursor = useCallback((input: string, cursorPos: number) => {
+    // Find the start of the current tag (after the last space before cursor, or start of string)
+    let tagStart = input.lastIndexOf(' ', cursorPos - 1) + 1;
+    
+    // Find the end of the current tag (next space after cursor, or end of string)
+    let tagEnd = input.indexOf(' ', cursorPos);
+    if (tagEnd === -1) tagEnd = input.length;
+    
+    const currentTag = input.substring(tagStart, tagEnd);
+    return { tag: currentTag, start: tagStart, end: tagEnd };
+  }, []);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart || 0;
+    setSearchInput(value);
+    setCursorPosition(cursorPos);
+    
+    // Get the tag at the cursor position
+    const { tag } = getTagAtCursor(value, cursorPos);
+    
+    // Clear existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Set new debounce timer
+    debounceTimerRef.current = setTimeout(() => {
+      fetchSuggestions(tag);
+    }, 300);
+  }, [fetchSuggestions, getTagAtCursor]);
+
+  const applySuggestion = useCallback((suggestion: TagSuggestion) => {
+    const { start, end } = getTagAtCursor(searchInput, cursorPosition);
+    const newValue = searchInput.substring(0, start) + suggestion.name + searchInput.substring(end);
+    setSearchInput(newValue);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    
+    // Focus back on input and set cursor position after the inserted tag
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+      const newCursorPos = start + suggestion.name.length;
+      setTimeout(() => {
+        searchInputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    }
+  }, [searchInput, cursorPosition, getTagAtCursor]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => 
+        prev < suggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => 
+        prev > 0 ? prev - 1 : suggestions.length - 1
+      );
+    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+      e.preventDefault();
+      applySuggestion(suggestions[selectedSuggestionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setSuggestions([]);
+      setSelectedSuggestionIndex(-1);
+    }
+  }, [showSuggestions, suggestions, selectedSuggestionIndex, applySuggestion]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
@@ -83,10 +196,19 @@ export default function SearchBar({
           mobileSiteDropdownRef.current && !mobileSiteDropdownRef.current.contains(event.target as Node)) {
         setShowSiteDropdown(false);
       }
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
+          searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -143,13 +265,47 @@ export default function SearchBar({
           )}
         </div>
         
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Search tags..."
-          className="search-input"
-        />
+        <div className="search-input-container">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchInput}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={(e) => {
+              setCursorPosition(e.target.selectionStart || 0);
+              const { tag } = getTagAtCursor(searchInput, e.target.selectionStart || 0);
+              if (tag.length >= 2) {
+                fetchSuggestions(tag);
+              }
+            }}
+            placeholder="Search tags..."
+            className="search-input"
+          />
+          
+          {showSuggestions && suggestions.length > 0 && (
+            <div ref={suggestionsRef} className="autocomplete-dropdown">
+              {suggestions.map((suggestion, index) => (
+                <div
+                  key={suggestion.name}
+                  className={`autocomplete-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
+                  onClick={() => applySuggestion(suggestion)}
+                  onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                >
+                  <span 
+                    className="tag-name"
+                    style={{ color: suggestion.color }}
+                  >
+                    {suggestion.name}
+                  </span>
+                  <span className="tag-count">
+                    {suggestion.count.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         
         <button type="submit" className="search-button">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -402,8 +558,13 @@ export default function SearchBar({
           font-weight: 500;
         }
 
-        .search-input {
+        .search-input-container {
           flex: 1;
+          position: relative;
+        }
+
+        .search-input {
+          width: 100%;
           padding: 12px 16px;
           background: var(--bg-secondary);
           border: 1px solid var(--border-subtle);
@@ -421,6 +582,59 @@ export default function SearchBar({
 
         .search-input::placeholder {
           color: var(--text-dim);
+        }
+
+        .autocomplete-dropdown {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          right: 0;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          max-height: 300px;
+          overflow-y: auto;
+          z-index: 200;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          animation: dropIn 0.2s ease;
+        }
+
+        .autocomplete-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 10px 14px;
+          cursor: pointer;
+          transition: background 0.15s ease;
+          border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .autocomplete-item:last-child {
+          border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+          background: var(--bg-hover);
+        }
+
+        .tag-name {
+          font-size: 14px;
+          font-weight: 500;
+          flex: 1;
+          margin-right: 12px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .tag-count {
+          font-size: 12px;
+          color: var(--text-dim);
+          background: var(--bg-tertiary);
+          padding: 2px 8px;
+          border-radius: var(--radius-sm);
+          white-space: nowrap;
         }
 
         .search-button,
