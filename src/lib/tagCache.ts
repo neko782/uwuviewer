@@ -29,6 +29,15 @@ const TAG_COLORS: Record<number, string> = {
   6: '#C62828', // Faults - dark red
 };
 
+const TAG_TYPE_NAMES: Record<number, string> = {
+  0: 'General',
+  1: 'Artist',
+  3: 'Copyright',
+  4: 'Character',
+  5: 'Circle',
+  6: 'Faults',
+};
+
 class TagCacheManager {
   private cache: TagCache | null = null;
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -137,31 +146,53 @@ class TagCacheManager {
     }
   }
 
-  async getTagsInfo(tagNames: string[]): Promise<Record<string, { count: number; type: number; color: string } | null>> {
+  async getTagsInfo(tagNames: string[]): Promise<{
+    tags: Record<string, { count: number; type: number; color: string } | null>;
+    grouped: Record<string, string[]>;
+  }> {
     await this.ensureCache();
     
     if (!this.cache) {
       throw new Error('Tag cache not available');
     }
 
-    const result: Record<string, { count: number; type: number; color: string } | null> = {};
+    const tags: Record<string, { count: number; type: number; color: string } | null> = {};
+    const grouped: Record<string, string[]> = {};
+    
+    // Initialize groups
+    for (const typeNum in TAG_TYPE_NAMES) {
+      grouped[TAG_TYPE_NAMES[typeNum as unknown as number]] = [];
+    }
+    grouped['Unknown'] = [];
     
     for (const tagName of tagNames) {
       const tag = this.cache.tags.get(tagName);
       if (tag) {
-        result[tagName] = {
+        tags[tagName] = {
           count: tag.count,
           type: tag.type,
           color: TAG_COLORS[tag.type] || '#888888',
         };
+        
+        // Add to grouped structure
+        const typeName = TAG_TYPE_NAMES[tag.type] || 'Unknown';
+        grouped[typeName].push(tagName);
       } else {
-        result[tagName] = null;
+        tags[tagName] = null;
+        grouped['Unknown'].push(tagName);
+      }
+    }
+    
+    // Remove empty groups
+    for (const key in grouped) {
+      if (grouped[key].length === 0) {
+        delete grouped[key];
       }
     }
 
-    return result;
+    return { tags, grouped };
   }
 }
 
 export const tagCacheManager = new TagCacheManager();
-export { TAG_COLORS };
+export { TAG_COLORS, TAG_TYPE_NAMES };

@@ -17,9 +17,14 @@ interface TagInfo {
   color: string;
 }
 
+interface TagData {
+  tags: Record<string, TagInfo | null>;
+  grouped: Record<string, string[]>;
+}
+
 export default function ImageViewer({ post, site, onClose, onTagClick }: ImageViewerProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [tagInfo, setTagInfo] = useState<Record<string, TagInfo | null>>({});
+  const [tagData, setTagData] = useState<TagData>({ tags: {}, grouped: {} });
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -40,7 +45,7 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
           body: JSON.stringify({ tags, site })
         })
           .then(res => res.json())
-          .then(data => setTagInfo(data))
+          .then(data => setTagData(data))
           .catch(err => console.error('Failed to fetch tag info:', err));
       }
     }
@@ -120,32 +125,68 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
 
           <div className="info-section">
             <h3>Tags</h3>
-            <div className="tags-container">
-              {post.tags.split(' ').filter(tag => tag.length > 0).map((tag, index) => {
-                const info = site === 'yande.re' ? tagInfo[tag] : null;
-                return (
-                  <button
-                    key={index}
-                    className="tag"
-                    style={info ? {
-                      backgroundColor: info.color,
-                      color: '#fff',
-                      border: 'none'
-                    } : {}}
-                    onClick={() => {
-                      if (onTagClick) {
-                        onTagClick(tag);
-                        onClose();
-                      }
-                    }}
-                    title={info ? `${tag} (${info.count} posts)` : tag}
-                  >
-                    {tag.replace(/_/g, ' ')}
-                    {info && <span className="tag-count">({info.count})</span>}
-                  </button>
-                );
-              })}
-            </div>
+            {site === 'yande.re' && Object.keys(tagData.grouped).length > 0 ? (
+              <div className="tags-grouped">
+                {Object.entries(tagData.grouped).map(([groupName, tags]) => (
+                  <div key={groupName} className="tag-group">
+                    <h4 className="tag-group-title">{groupName}</h4>
+                    <div className="tags-container">
+                      {tags.map((tag, index) => {
+                        const info = tagData.tags[tag];
+                        return (
+                          <button
+                            key={index}
+                            className="tag"
+                            style={info ? {
+                              backgroundColor: info.color,
+                              color: '#fff',
+                              border: 'none'
+                            } : {}}
+                            onClick={() => {
+                              if (onTagClick) {
+                                onTagClick(tag);
+                                onClose();
+                              }
+                            }}
+                            title={info ? `${tag} (${info.count} posts)` : tag}
+                          >
+                            {tag.replace(/_/g, ' ')}
+                            {info && <span className="tag-count">({info.count})</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="tags-container">
+                {post.tags.split(' ').filter(tag => tag.length > 0).map((tag, index) => {
+                  const info = site === 'yande.re' ? tagData.tags[tag] : null;
+                  return (
+                    <button
+                      key={index}
+                      className="tag"
+                      style={info ? {
+                        backgroundColor: info.color,
+                        color: '#fff',
+                        border: 'none'
+                      } : {}}
+                      onClick={() => {
+                        if (onTagClick) {
+                          onTagClick(tag);
+                          onClose();
+                        }
+                      }}
+                      title={info ? `${tag} (${info.count} posts)` : tag}
+                    >
+                      {tag.replace(/_/g, ' ')}
+                      {info && <span className="tag-count">({info.count})</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="info-actions">
@@ -331,6 +372,27 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
 
         .info-value a:hover {
           color: var(--accent-hover);
+        }
+
+        .tags-grouped {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .tag-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .tag-group-title {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin: 0;
         }
 
         .tags-container {
