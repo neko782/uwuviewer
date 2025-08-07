@@ -33,10 +33,11 @@ class TagCacheManager {
   private cache: TagCache | null = null;
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
   private fetchPromise: Promise<void> | null = null;
+  private loadPromise: Promise<void> | null = null;
   private readonly CACHE_FILE = path.join(tmpdir(), 'owo-tag-cache.json');
 
   constructor() {
-    this.loadCacheFromDisk();
+    this.loadPromise = this.loadCacheFromDisk();
   }
 
   private async loadCacheFromDisk(): Promise<void> {
@@ -76,6 +77,12 @@ class TagCacheManager {
   }
 
   async ensureCache(): Promise<void> {
+    // Wait for initial load from disk if still in progress
+    if (this.loadPromise) {
+      await this.loadPromise;
+      this.loadPromise = null;
+    }
+
     const now = Date.now();
     
     if (this.cache && (now - this.cache.lastFetch) < this.CACHE_DURATION) {
