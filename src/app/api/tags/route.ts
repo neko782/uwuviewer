@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Support yande.re, konachan.com, gelbooru.com, and rule34.xxx
-    if (site !== 'yande.re' && site !== 'konachan.com' && site !== 'gelbooru.com' && site !== 'rule34.xxx') {
+    // Support yande.re, konachan.com, gelbooru.com, rule34.xxx, and e621.net
+    if (site !== 'yande.re' && site !== 'konachan.com' && site !== 'gelbooru.com' && site !== 'rule34.xxx' && site !== 'e621.net') {
       return NextResponse.json(
         { error: 'Only yande.re, konachan.com, gelbooru.com, and rule34.xxx are currently supported' },
         { status: 400 }

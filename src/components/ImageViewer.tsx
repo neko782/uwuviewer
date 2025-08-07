@@ -64,6 +64,8 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
       return `https://gelbooru.com/index.php?page=post&s=view&id=${post.id}`;
     } else if (site === 'rule34.xxx') {
       return `https://rule34.xxx/index.php?page=post&s=view&id=${post.id}`;
+    } else if (site === 'e621.net') {
+      return `https://e621.net/posts/${post.id}`;
     } else {
       return `https://${site}/post/show/${post.id}`;
     }
@@ -128,7 +130,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
 
           <div className="info-section">
             <h3>Tags</h3>
-            {(site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx') && Object.keys(tagData.grouped).length > 0 ? (
+            {(site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx' || site === 'e621.net') && Object.keys(tagData.grouped).length > 0 ? (
               <div className="tags-grouped">
                 {Object.entries(tagData.grouped).map(([groupName, tags]) => (
                   <div key={groupName} className="tag-group">
@@ -165,7 +167,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
             ) : (
               <div className="tags-container">
                 {post.tags.split(' ').filter(tag => tag.length > 0).map((tag, index) => {
-                  const info = (site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx') ? tagData.tags[tag] : null;
+                  const info = (site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx' || site === 'e621.net') ? tagData.tags[tag] : null;
                   return (
                     <button
                       key={index}

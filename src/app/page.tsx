@@ -94,7 +94,7 @@ export default function Home() {
   const toastIdsRef = useRef<Map<Site, string | number>>(new Map());
 
   const startTagPrefetch = useCallback(async (targetSite: Site) => {
-    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx') return;
+    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx' && targetSite !== 'e621.net') return;
 
     // prevent parallel duplicate prefetches and duplicate toasts per site
     if (prefetchingSitesRef.current.has(targetSite)) return;
@@ -185,6 +185,7 @@ export default function Home() {
   const getDownloadSizeLabel = useCallback((targetSite: Site) => {
     if (targetSite === 'rule34.xxx') return 'about 100 MB';
     if (targetSite === 'yande.re' || targetSite === 'konachan.com') return 'about 10 MB';
+    if (targetSite === 'e621.net') return 'about 15 MB';
     return '';
   }, []);
 
@@ -199,7 +200,7 @@ export default function Home() {
   };
 
   const maybePromptOrAutoPrefetch = useCallback((targetSite: Site) => {
-    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx') return;
+    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx' && targetSite !== 'e621.net') return;
     const c = getConsent(targetSite);
     if (c === 'accepted') {
       startTagPrefetch(targetSite);
@@ -239,7 +240,7 @@ export default function Home() {
                          currentTags === '';
     
     if (isOnlyRating) {
-      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : newSite === 'rule34.xxx' ? '' : 'rating:safe';
+      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : newSite === 'rule34.xxx' ? '' : newSite === 'e621.net' ? 'rating:s' : 'rating:safe';
       setSearchTags(defaultRating);
     }
   };

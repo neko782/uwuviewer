@@ -94,13 +94,13 @@ export interface UnifiedPost {
   has_children: boolean;
 }
 
-export type Site = 'yande.re' | 'konachan.com' | 'gelbooru.com' | 'rule34.xxx';
+export type Site = 'yande.re' | 'konachan.com' | 'gelbooru.com' | 'rule34.xxx' | 'e621.net';
 
 export class ImageBoardAPI {
   private baseUrl: string;
   private timeout = 60000; // 60 seconds timeout
   private site: Site;
-  private apiType: 'moebooru' | 'gelbooru';
+  private apiType: 'moebooru' | 'gelbooru' | 'e621';
   private apiKey: string;
 
   constructor(site: Site = 'yande.re', apiKey: string = '') {
@@ -118,6 +118,9 @@ export class ImageBoardAPI {
     } else if (site === 'rule34.xxx') {
       this.baseUrl = 'https://rule34.xxx';
       this.apiType = 'gelbooru';
+    } else if (site === 'e621.net') {
+      this.baseUrl = 'https://e621.net';
+      this.apiType = 'e621';
     } else {
       this.baseUrl = `https://${site}`;
       this.apiType = 'moebooru';
@@ -184,6 +187,51 @@ export class ImageBoardAPI {
     };
   }
 
+  private convertE621ToUnified(post: any): UnifiedPost {
+    // E621 post shape per docs
+    const tagsArr: string[] = [
+      ...(post.tags?.general || []),
+      ...(post.tags?.species || []),
+      ...(post.tags?.character || []),
+      ...(post.tags?.copyright || []),
+      ...(post.tags?.artist || []),
+      ...(post.tags?.meta || []),
+      ...(post.tags?.lore || []),
+      ...(post.tags?.invalid || []),
+    ];
+    const tags = tagsArr.join(' ');
+    const scoreTotal = typeof post.score?.total === 'number' ? post.score.total : 0;
+    const fileUrl = post.file?.url || '';
+    const sampleUrl = post.sample?.url || fileUrl;
+    const previewUrl = post.preview?.url || sampleUrl || fileUrl;
+
+    const width = typeof post.file?.width === 'number' ? post.file.width : 0;
+    const height = typeof post.file?.height === 'number' ? post.file.height : 0;
+    const preview_width = typeof post.preview?.width === 'number' ? post.preview.width : width || 250;
+    const preview_height = typeof post.preview?.height === 'number' ? post.preview.height : height || 250;
+
+    const sources: string[] = Array.isArray(post.sources) ? post.sources : [];
+    const source = sources.length > 0 ? sources[0] : '';
+
+    const has_children = !!post.relationships?.has_children;
+
+    return {
+      id: Number(post.id),
+      tags,
+      score: scoreTotal,
+      rating: String(post.rating || 's'),
+      file_url: fileUrl,
+      preview_url: previewUrl,
+      sample_url: sampleUrl,
+      width,
+      height,
+      preview_width,
+      preview_height,
+      source,
+      has_children,
+    };
+  }
+
   private normalizeGelbooruRating(rating: string): string {
     // Gelbooru uses full words for ratings: general, sensitive, questionable, explicit
     if (!rating) return 's';
@@ -232,9 +280,41 @@ export class ImageBoardAPI {
   } = {}): Promise<UnifiedPost[]> {
     if (this.apiType === 'gelbooru') {
       return this.getGelbooruPosts(params);
+    } else if (this.apiType === 'e621') {
+      return this.getE621Posts(params);
     } else {
       return this.getMoebooruPosts(params);
     }
+  }
+
+  private async getE621Posts(params: {
+    page?: number;
+    limit?: number;
+    tags?: string;
+    rating?: 's' | 'q' | 'e';
+  }): Promise<UnifiedPost[]> {
+    const limit = params.limit || 30;
+    const page = params.page || 1;
+
+    const queryParams = new URLSearchParams({
+      limit: String(limit),
+      page: String(page),
+    });
+    let tags = params.tags || '';
+    if (params.rating) {
+      tags = tags ? `${tags} rating:${params.rating}` : `rating:${params.rating}`;
+    }
+    if (tags) queryParams.append('tags', tags);
+
+    // We go through our proxy which sets an appropriate User-Agent for e621
+    const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/posts.json?${queryParams}`)}`;
+    const response = await this.fetchWithTimeout(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch posts: ${response.statusText}`);
+    }
+    const data: any = await response.json();
+    const postsRaw: any[] = Array.isArray(data) ? data : (data?.posts || []);
+    return postsRaw.map((p) => this.convertE621ToUnified(p));
   }
 
   private async getMoebooruPosts(params: {

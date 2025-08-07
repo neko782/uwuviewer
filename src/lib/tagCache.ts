@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { SaxesParser } from 'saxes';
+import { gunzipSync } from 'zlib';
 
 interface Tag {
   id: number;
@@ -94,6 +95,28 @@ const GELBOORU_TAG_TYPE_NAMES: Record<number, string> = {
   4: 'Character',
   5: 'Metadata',
   6: 'Deprecated',
+};
+
+const E621_TAG_COLORS: Record<number, string> = {
+  0: '#8B5A3C', // General
+  1: '#B8860B', // Artist
+  3: '#8B4789', // Copyright
+  4: '#2E7D32', // Character
+  5: '#00897B', // Species (teal)
+  6: '#9E9E9E', // Invalid (grey)
+  7: '#1565C0', // Meta
+  8: '#7E57C2', // Lore (purple)
+};
+
+const E621_TAG_TYPE_NAMES: Record<number, string> = {
+  0: 'General',
+  1: 'Artist',
+  3: 'Copyright',
+  4: 'Character',
+  5: 'Species',
+  6: 'Invalid',
+  7: 'Meta',
+  8: 'Lore',
 };
 
 class TagCacheManager { 
@@ -304,6 +327,74 @@ class TagCacheManager {
         console.log(`Fetched and cached ${tagMap.size} tags from ${site} API`);
         await this.saveCacheToDisk(site);
         return;
+      } else if (site === 'e621.net') {
+        // Fetch daily CSV dump: tags-YYYY-MM-DD.csv.gz (UTC)
+        const now = new Date();
+        const toYMD = (d: Date) => {
+          const y = d.getUTCFullYear();
+          const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(d.getUTCDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+        const tryDates = [toYMD(now), toYMD(new Date(now.getTime() - 24*60*60*1000))];
+        let success = false;
+        const tagMap = new Map<string, Tag>();
+        for (const dateStr of tryDates) {
+          url = `https://e621.net/db_export/tags-${dateStr}.csv.gz`;
+          console.log(`Fetching ${site} tags dump for ${dateStr}...`);
+          const res = await fetch(url, {
+            headers: {
+              'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)'
+            }
+          });
+          if (!res.ok) {
+            console.warn(`Failed to fetch ${url}: ${res.status}`);
+            continue;
+          }
+          const ab = await res.arrayBuffer();
+          const buf = Buffer.from(ab);
+          let csv: string;
+          try {
+            const decompressed = gunzipSync(buf);
+            csv = decompressed.toString('utf8');
+          } catch (e) {
+            console.error('Failed to gunzip e621 tags dump:', e);
+            continue;
+          }
+          const lines = csv.split(/\r?\n/);
+          if (lines.length === 0) continue;
+          // Expect header: id,name,category,post_count
+          const header = lines[0].trim();
+          if (!/id,\s*name,\s*category,\s*post_count/.test(header)) {
+            console.warn('Unexpected e621 tags header:', header);
+          }
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            // Simple CSV parser: fields do not contain commas in this dataset
+            const parts = line.split(',');
+            if (parts.length < 4) continue;
+            const id = parseInt(parts[0], 10) || 0;
+            const name = parts[1];
+            const category = parseInt(parts[2], 10) || 0;
+            const count = parseInt(parts[3], 10) || 0;
+            // Skip empty names
+            if (!name) continue;
+            tagMap.set(name, { id, name, count, type: category, ambiguous: false });
+          }
+          success = true;
+          break;
+        }
+        if (!success) {
+          throw new Error('Failed to download any e621 tags dump for today or yesterday');
+        }
+        this.caches.set(site, {
+          tags: tagMap,
+          lastFetch: Date.now(),
+        });
+        console.log(`Fetched and cached ${tagMap.size} tags from ${site} dump`);
+        await this.saveCacheToDisk(site);
+        return;
       } else if (site === 'rule34.xxx') {
         url = 'https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&limit=0';
         console.log(`Fetching ${site} tags (streaming XML)...`);
@@ -412,7 +503,7 @@ class TagCacheManager {
   }
 
   async searchCachedTags(site: string, query: string, limit: number = 10): Promise<Tag[]> {
-    if (site !== 'yande.re' && site !== 'konachan.com' && site !== 'rule34.xxx') {
+    if (site !== 'yande.re' && site !== 'konachan.com' && site !== 'rule34.xxx' && site !== 'e621.net') {
       return [];
     }
     
@@ -476,8 +567,8 @@ class TagCacheManager {
     const grouped: Record<string, string[]> = {};
     
     // Get the appropriate color and type name mappings for the site
-    const TAG_COLORS = site === 'konachan.com' ? KONACHAN_TAG_COLORS : YANDERE_TAG_COLORS;
-    const TAG_TYPE_NAMES = site === 'konachan.com' ? KONACHAN_TAG_TYPE_NAMES : YANDERE_TAG_TYPE_NAMES;
+    const TAG_COLORS = site === 'konachan.com' ? KONACHAN_TAG_COLORS : site === 'e621.net' ? E621_TAG_COLORS : YANDERE_TAG_COLORS;
+    const TAG_TYPE_NAMES = site === 'konachan.com' ? KONACHAN_TAG_TYPE_NAMES : site === 'e621.net' ? E621_TAG_TYPE_NAMES : YANDERE_TAG_TYPE_NAMES;
     
     // Initialize groups
     for (const typeNum in TAG_TYPE_NAMES) {
@@ -651,6 +742,8 @@ export {
   KONACHAN_TAG_TYPE_NAMES,
   GELBOORU_TAG_TYPE_NAMES,
   RULE34_TYPE_TO_NUM,
-  RULE34_TAG_COLORS
+  RULE34_TAG_COLORS,
+  E621_TAG_COLORS,
+  E621_TAG_TYPE_NAMES
 };
 export type { Tag };

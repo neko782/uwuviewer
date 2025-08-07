@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const { site } = await request.json();
 
-    if (!site || (site !== 'yande.re' && site !== 'konachan.com' && site !== 'rule34.xxx')) {
+    if (!site || (site !== 'yande.re' && site !== 'konachan.com' && site !== 'rule34.xxx' && site !== 'e621.net')) {
       return NextResponse.json({ error: 'Invalid or unsupported site' }, { status: 400 });
     }
 

@@ -48,6 +48,7 @@ export default function SearchBar({
     { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico', defaultRating: 'rating:safe' },
     { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico', defaultRating: 'rating:safe' },
     { value: 'gelbooru.com', label: 'Gelbooru', icon: '/gelbooru.ico', needsApiKey: true, defaultRating: 'rating:general' },
+    { value: 'e621.net', label: 'e621', icon: '/e621.svg', defaultRating: 'rating:s' },
     { value: 'rule34.xxx', label: 'Rule34', icon: '/rule34.ico', defaultRating: '' }
   ];
 
@@ -99,7 +100,7 @@ export default function SearchBar({
       setShowDownloadOption(false);
       return;
     }
-    const supported = currentSite === 'yande.re' || currentSite === 'konachan.com' || currentSite === 'rule34.xxx';
+    const supported = currentSite === 'yande.re' || currentSite === 'konachan.com' || currentSite === 'rule34.xxx' || currentSite === 'e621.net';
     const consent = localStorage.getItem(`tag_prefetch_consent_${currentSite}`);
     setShowDownloadOption(supported && consent === 'declined');
   }, [currentSite]);

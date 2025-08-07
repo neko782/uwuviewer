@@ -6,6 +6,7 @@ import {
   GELBOORU_TAG_COLORS,
   RULE34_TAG_COLORS,
   RULE34_TYPE_TO_NUM,
+  E621_TAG_COLORS,
 } from '@/lib/tagCache';
 
 interface GelbooruTag {
@@ -238,8 +239,8 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
       return NextResponse.json({ suggestions });
     }
 
-    // Handle yande.re and konachan.com with cached tags (cache-only; do not trigger downloads)
-    if (site !== 'yande.re' && site !== 'konachan.com') {
+    // Handle yande.re, konachan.com, and e621.net with cached tags (cache-only; do not trigger downloads)
+    if (site !== 'yande.re' && site !== 'konachan.com' && site !== 'e621.net') {
       return NextResponse.json({ suggestions: [] });
     }
 
@@ -250,7 +251,7 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
     const tags = tagCacheManager.searchCachedTagsOnly(site, query, 10);
     
     // Get the appropriate color map for the site
-    const colorMap = site === 'konachan.com' ? KONACHAN_TAG_COLORS : YANDERE_TAG_COLORS;
+    const colorMap = site === 'konachan.com' ? KONACHAN_TAG_COLORS : site === 'e621.net' ? E621_TAG_COLORS : YANDERE_TAG_COLORS;
     
     // Format the response with colors and counts
     const suggestions = tags.map(tag => ({

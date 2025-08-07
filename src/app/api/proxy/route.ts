@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)','Accept': 'application/json',
       },
       signal: controller.signal,
       // @ts-ignore - Next.js specific fetch options
