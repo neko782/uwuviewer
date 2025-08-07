@@ -223,16 +223,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ suggestions });
     }
 
-    // Handle Rule34 via its autocomplete endpoint
+    // Handle Rule34: prefer local cache; fallback to ac.rule34 if cache not ready
     if (site === 'rule34.xxx') {
-      const items = await fetchRule34Suggestions(query);
-      const suggestions = items.map((it) => ({
-        name: it.name,
-        count: it.count,
-        type: it.typeNum,
-        color: RULE34_TAG_COLORS[it.typeNum] || '#888888',
-      }));
-      return NextResponse.json({ suggestions });
+      if (tagCacheManager.isCacheFresh('rule34.xxx')) {
+        const tags = await tagCacheManager.searchCachedTags('rule34.xxx', query, 10);
+        const suggestions = tags.map(tag => ({
+          name: tag.name,
+          count: tag.count,
+          type: tag.type,
+          color: RULE34_TAG_COLORS[tag.type] || '#888888',
+        }));
+        return NextResponse.json({ suggestions });
+      } else {
+        // Kick off background refresh; non-blocking
+        tagCacheManager.refreshInBackground('rule34.xxx');
+        const items = await fetchRule34Suggestions(query);
+        const suggestions = items.map((it) => ({
+          name: it.name,
+          count: it.count,
+          type: it.typeNum,
+          color: RULE34_TAG_COLORS[it.typeNum] || '#888888',
+        }));
+        return NextResponse.json({ suggestions });
+      }
     }
 
     // Handle yande.re and konachan.com with cached tags

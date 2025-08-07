@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { SaxesParser } from 'saxes';
 
 interface Tag {
   id: number;
@@ -97,13 +98,18 @@ const GELBOORU_TAG_TYPE_NAMES: Record<number, string> = {
 
 class TagCacheManager {
   private caches: Map<string, TagCache | null> = new Map();
-  private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours (default)
+  private readonly R34_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days for Rule34
   private fetchPromises: Map<string, Promise<void>> = new Map();
   private loadPromises: Map<string, Promise<void>> = new Map();
   private readonly DATA_DIR = path.join(process.cwd(), 'data');
 
   constructor() {
     this.ensureDataDir();
+  }
+
+  private getCacheDuration(site: string): number {
+    return site === 'rule34.xxx' ? this.R34_CACHE_DURATION : this.CACHE_DURATION;
   }
 
   private async ensureDataDir(): Promise<void> {
@@ -126,7 +132,8 @@ class TagCacheManager {
       const serialized: SerializedCache = JSON.parse(data);
       
       const now = Date.now();
-      if (now - serialized.lastFetch < this.CACHE_DURATION) {
+      const duration = this.getCacheDuration(site);
+      if (now - serialized.lastFetch < duration) {
         this.caches.set(site, {
           tags: new Map(serialized.tags),
           lastFetch: serialized.lastFetch,
@@ -174,8 +181,9 @@ class TagCacheManager {
 
     const now = Date.now();
     const cache = this.caches.get(site);
+    const duration = this.getCacheDuration(site);
     
-    if (cache && (now - cache.lastFetch) < this.CACHE_DURATION) {
+    if (cache && (now - cache.lastFetch) < duration) {
       return;
     }
 
@@ -191,6 +199,25 @@ class TagCacheManager {
     this.fetchPromises.delete(site);
   }
 
+  // Public helper to check if a cache is loaded and fresh
+  isCacheFresh(site: string): boolean {
+    const cache = this.caches.get(site);
+    if (!cache) return false;
+    const now = Date.now();
+    const duration = this.getCacheDuration(site);
+    return (now - cache.lastFetch) < duration;
+  }
+
+  // Fire-and-forget refresh for large sources (like Rule34) to avoid blocking requests
+  refreshInBackground(site: string): void {
+    if (this.fetchPromises.has(site)) return;
+    const promise = this.fetchTags(site).catch(err => {
+      console.error(`Background refresh failed for ${site}:`, err);
+    });
+    this.fetchPromises.set(site, promise);
+    promise.finally(() => this.fetchPromises.delete(site));
+  }
+
   private async fetchTags(site: string): Promise<void> {
     try {
       let url: string;
@@ -200,35 +227,98 @@ class TagCacheManager {
 
       if (site === 'yande.re') {
         url = 'https://yande.re/tag.json?limit=0';
+        console.log(`Fetching ${site} tags from API...`);
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch tags: ${response.status}`);
+        }
+        const tags: Tag[] = await response.json();
+        const tagMap = new Map<string, Tag>();
+        for (const tag of tags) {
+          tagMap.set(tag.name, tag);
+        }
+        this.caches.set(site, {
+          tags: tagMap,
+          lastFetch: Date.now(),
+        });
+        console.log(`Fetched and cached ${tagMap.size} tags from ${site} API`);
+        await this.saveCacheToDisk(site);
+        return;
       } else if (site === 'konachan.com') {
         url = 'https://konachan.com/tag.json?limit=0';
+        console.log(`Fetching ${site} tags from API...`);
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch tags: ${response.status}`);
+        }
+        const tags: Tag[] = await response.json();
+        const tagMap = new Map<string, Tag>();
+        for (const tag of tags) {
+          tagMap.set(tag.name, tag);
+        }
+        this.caches.set(site, {
+          tags: tagMap,
+          lastFetch: Date.now(),
+        });
+        console.log(`Fetched and cached ${tagMap.size} tags from ${site} API`);
+        await this.saveCacheToDisk(site);
+        return;
+      } else if (site === 'rule34.xxx') {
+        url = 'https://api.rule34.xxx/index.php?page=dapi&s=tag&q=index&limit=0';
+        console.log(`Fetching ${site} tags (streaming XML)...`);
+        const response = await fetch(url, { headers });
+        if (!response.ok || !response.body) {
+          throw new Error(`Failed to fetch tags: ${response.status}`);
+        }
+        const tagMap = new Map<string, Tag>();
+
+        const parser = new SaxesParser();
+        parser.on('opentag', (node: any) => {
+          if (!node || !node.name) return;
+          const name = String(node.name).toLowerCase();
+          if (name !== 'tag') return;
+          const attrs = node.attributes || {};
+          const tagName = String(attrs.name || '');
+          if (!tagName) return;
+          const count = parseInt(String(attrs.count || '0'), 10) || 0;
+          let typeNum: number;
+          const typeAttr = String(attrs.type ?? '0');
+          if (/^\d+$/.test(typeAttr)) {
+            typeNum = parseInt(typeAttr, 10);
+          } else {
+            typeNum = RULE34_TYPE_TO_NUM[typeAttr.toLowerCase()] ?? 0;
+          }
+          const id = parseInt(String(attrs.id || '0'), 10) || 0;
+          const ambiguous = String(attrs.ambiguous || 'false') === 'true';
+          tagMap.set(tagName, { id, name: tagName, count, type: typeNum, ambiguous });
+        });
+
+        const reader = (response.body as any).getReader?.();
+        if (!reader) {
+          // Fallback: load entire text (may be heavy); try to parse anyway
+          const text = await response.text();
+          parser.write(text);
+          parser.close();
+        } else {
+          const decoder = new TextDecoder();
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            parser.write(decoder.decode(value, { stream: true }));
+          }
+          parser.close();
+        }
+
+        this.caches.set(site, {
+          tags: tagMap,
+          lastFetch: Date.now(),
+        });
+        console.log(`Fetched and cached ${tagMap.size} tags from ${site} XML`);
+        await this.saveCacheToDisk(site);
+        return;
       } else {
         throw new Error(`Unsupported site: ${site}`);
       }
-
-      console.log(`Fetching ${site} tags from API...`);
-      const response = await fetch(url, { headers });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tags: ${response.status}`);
-      }
-
-      const tags: Tag[] = await response.json();
-      const tagMap = new Map<string, Tag>();
-      
-      for (const tag of tags) {
-        tagMap.set(tag.name, tag);
-      }
-
-      this.caches.set(site, {
-        tags: tagMap,
-        lastFetch: Date.now(),
-      });
-
-      console.log(`Fetched and cached ${tagMap.size} tags from ${site} API`);
-      
-      // Save to disk after successful fetch
-      await this.saveCacheToDisk(site);
     } catch (error) {
       console.error(`Error fetching tags for ${site}:`, error);
       // Keep existing cache if fetch fails
@@ -239,7 +329,7 @@ class TagCacheManager {
   }
 
   async searchCachedTags(site: string, query: string, limit: number = 10): Promise<Tag[]> {
-    if (site !== 'yande.re' && site !== 'konachan.com') {
+    if (site !== 'yande.re' && site !== 'konachan.com' && site !== 'rule34.xxx') {
       return [];
     }
     
@@ -357,44 +447,27 @@ class TagCacheManager {
     }
     grouped['Unknown'] = [];
 
-    // Fetch info for each tag using the autocomplete endpoint
-    // We must include Origin and Referer headers
-    await Promise.all(tagNames.map(async (tagName) => {
-      try {
-        const url = `https://ac.rule34.xxx/autocomplete.php?q=${encodeURIComponent(tagName)}`;
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Origin': 'https://rule34.xxx',
-            'Referer': 'https://rule34.xxx/',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch Rule34 tag: ${response.status}`);
-        }
-
-        const data: Array<{ label: string; value: string; type: string }> = await response.json();
-        const exact = data.find((d) => d.value === tagName);
-        if (exact) {
-          // Extract count from label e.g., "tag_name (1234)"
-          const match = exact.label.match(/\(([\d,]+)\)$/);
-          const count = match ? parseInt(match[1].replace(/,/g, ''), 10) : 0;
-          const typeNum = RULE34_TYPE_TO_NUM[exact.type] ?? 0;
-          const color = RULE34_TAG_COLORS[typeNum] || '#888888';
-
-          tags[tagName] = { count, type: typeNum, color };
-          grouped[RULE34_TYPE_NAMES[typeNum]].push(tagName);
+    // If cache is not ready, trigger background refresh and return unknowns
+    const cache = this.caches.get('rule34.xxx');
+    if (!cache) {
+      this.refreshInBackground('rule34.xxx');
+      for (const tagName of tagNames) {
+        tags[tagName] = null;
+        grouped['Unknown'].push(tagName);
+      }
+    } else {
+      for (const tagName of tagNames) {
+        const tag = cache.tags.get(tagName);
+        if (tag) {
+          const color = RULE34_TAG_COLORS[tag.type] || '#888888';
+          tags[tagName] = { count: tag.count, type: tag.type, color };
+          grouped[RULE34_TYPE_NAMES[tag.type]].push(tagName);
         } else {
           tags[tagName] = null;
           grouped['Unknown'].push(tagName);
         }
-      } catch (error) {
-        console.error('Error fetching Rule34 tag:', tagName, error);
-        tags[tagName] = null;
-        grouped['Unknown'].push(tagName);
       }
-    }));
+    }
 
     // Remove empty groups
     for (const key in grouped) {
