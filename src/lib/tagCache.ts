@@ -44,7 +44,7 @@ const GELBOORU_TAG_COLORS: Record<number, string> = {
   3: '#8B4789', // Copyright - dark orchid (similar to moebooru)
   4: '#2E7D32', // Character - forest green (similar to moebooru)
   5: '#1565C0', // Metadata - medium blue (like konachan styles)
-  6: '#888888', // Tag - gray (unused but included for completeness)
+  6: '#C62828', // Deprecated - dark red (like yandere faults)
 };
 
 const YANDERE_TAG_TYPE_NAMES: Record<number, string> = {
@@ -72,7 +72,7 @@ const GELBOORU_TAG_TYPE_NAMES: Record<number, string> = {
   3: 'Copyright',
   4: 'Character',
   5: 'Metadata',
-  6: 'Tag',
+  6: 'Deprecated',
 };
 
 class TagCacheManager {
