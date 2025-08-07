@@ -89,8 +89,7 @@ export default function SearchBar({
   }, [currentApiKey]);
 
   const fetchSuggestions = useCallback(async (query: string) => {
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery || trimmedQuery.length < 2) {
+    if (!query || query.length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -103,7 +102,7 @@ export default function SearchBar({
 
     try {
       const response = await fetch(
-        `/api/autocomplete?q=${encodeURIComponent(trimmedQuery)}&site=${currentSite}`
+        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}`
       );
       const data = await response.json();
       setSuggestions(data.suggestions || []);
@@ -140,21 +139,12 @@ export default function SearchBar({
     // Clear existing debounce timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
     }
     
-    // Only fetch suggestions if the tag is not empty/whitespace
-    const trimmedTag = tag.trim();
-    if (trimmedTag.length >= 2) {
-      // Set new debounce timer
-      debounceTimerRef.current = setTimeout(() => {
-        fetchSuggestions(trimmedTag);
-      }, 300);
-    } else {
-      // Clear suggestions if tag is too short or empty
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
+    // Set new debounce timer
+    debounceTimerRef.current = setTimeout(() => {
+      fetchSuggestions(tag);
+    }, 300);
   }, [fetchSuggestions, getTagAtCursor]);
 
   const applySuggestion = useCallback((suggestion: TagSuggestion) => {
@@ -164,17 +154,9 @@ export default function SearchBar({
     const beforeCursor = searchInput.substring(0, start);
     const afterCursor = searchInput.substring(cursorPosition);
     const newValue = beforeCursor + suggestion.name + ' ' + afterCursor;
-    
-    // Clear any pending debounce timer to prevent re-fetching
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    
     setSearchInput(newValue);
     setShowSuggestions(false);
     setSuggestions([]);
-    setSelectedSuggestionIndex(-1);
     
     // Focus back on input and set cursor position after the inserted tag and space
     if (searchInputRef.current) {
@@ -182,7 +164,6 @@ export default function SearchBar({
       const newCursorPos = start + suggestion.name.length + 1; // +1 for the space
       setTimeout(() => {
         searchInputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
-        setCursorPosition(newCursorPos);
       }, 0);
     }
   }, [searchInput, cursorPosition, getTagAtCursor]);
@@ -298,9 +279,8 @@ export default function SearchBar({
             onFocus={(e) => {
               setCursorPosition(e.target.selectionStart || 0);
               const { tag } = getTagAtCursor(searchInput, e.target.selectionStart || 0);
-              const trimmedTag = tag.trim();
-              if (trimmedTag.length >= 2) {
-                fetchSuggestions(trimmedTag);
+              if (tag.length >= 2) {
+                fetchSuggestions(tag);
               }
             }}
             placeholder="Search tags..."
