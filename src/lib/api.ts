@@ -94,7 +94,7 @@ export interface UnifiedPost {
   has_children: boolean;
 }
 
-export type Site = 'yande.re' | 'konachan.com' | 'gelbooru.com';
+export type Site = 'yande.re' | 'konachan.com' | 'gelbooru.com' | 'rule34.xxx';
 
 export class ImageBoardAPI {
   private baseUrl: string;
@@ -109,6 +109,9 @@ export class ImageBoardAPI {
     
     if (site === 'gelbooru.com') {
       this.baseUrl = 'https://gelbooru.com';
+      this.apiType = 'gelbooru';
+    } else if (site === 'rule34.xxx') {
+      this.baseUrl = 'https://rule34.xxx';
       this.apiType = 'gelbooru';
     } else {
       this.baseUrl = `https://${site}`;

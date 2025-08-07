@@ -105,7 +105,7 @@ export default function Home() {
                          currentTags === '';
     
     if (isOnlyRating) {
-      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : 'rating:safe';
+      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : newSite === 'rule34.xxx' ? '' : 'rating:safe';
       setSearchTags(defaultRating);
     }
   };

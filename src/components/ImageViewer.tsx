@@ -62,6 +62,8 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
   const getPostUrl = () => {
     if (site === 'gelbooru.com') {
       return `https://gelbooru.com/index.php?page=post&s=view&id=${post.id}`;
+    } else if (site === 'rule34.xxx') {
+      return `https://rule34.xxx/index.php?page=post&s=view&id=${post.id}`;
     } else {
       return `https://${site}/post/show/${post.id}`;
     }
