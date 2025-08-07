@@ -12,15 +12,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Currently only supporting yande.re
-    if (site !== 'yande.re') {
+    // Support both yande.re and konachan.com
+    if (site !== 'yande.re' && site !== 'konachan.com') {
       return NextResponse.json(
-        { error: 'Only yande.re is currently supported' },
+        { error: 'Only yande.re and konachan.com are currently supported' },
         { status: 400 }
       );
     }
 
-    const tagInfo = await tagCacheManager.getTagsInfo(tags);
+    const tagInfo = await tagCacheManager.getTagsInfo(site, tags);
     
     return NextResponse.json(tagInfo);
   } catch (error) {
