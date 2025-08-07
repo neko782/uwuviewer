@@ -212,13 +212,13 @@ export default function Home() {
       <ImageViewer
         post={selectedPost}
         site={site}
+        apiKey={apiKey}
         onClose={() => setSelectedPost(null)}
         onTagClick={(tag) => {
           setSearchTags(tag);
           setPosts([]);
           setPage(1);
           setHasMore(true);
-          setError(null);
         }}
       />
 

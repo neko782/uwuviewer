@@ -218,13 +218,13 @@ class TagCacheManager {
     }
   }
 
-  async getTagsInfo(site: string, tagNames: string[]): Promise<{
+  async getTagsInfo(site: string, tagNames: string[], apiKey?: string): Promise<{
     tags: Record<string, { count: number; type: number; color: string } | null>;
     grouped: Record<string, string[]>;
   }> {
     // Handle Gelbooru separately since it doesn't use cache
     if (site === 'gelbooru.com') {
-      return this.getGelbooruTagsInfo(tagNames);
+      return this.getGelbooruTagsInfo(tagNames, apiKey);
     }
     
     await this.ensureCache(site);
@@ -275,7 +275,7 @@ class TagCacheManager {
     return { tags, grouped };
   }
 
-  private async getGelbooruTagsInfo(tagNames: string[]): Promise<{
+  private async getGelbooruTagsInfo(tagNames: string[], apiKey?: string): Promise<{
     tags: Record<string, { count: number; type: number; color: string } | null>;
     grouped: Record<string, string[]>;
   }> {
@@ -291,7 +291,8 @@ class TagCacheManager {
     try {
       // Gelbooru API allows fetching multiple tags at once
       const tagNamesParam = tagNames.join(' ');
-      const url = `https://gelbooru.com/index.php?page=dapi&s=tag&q=index&names=${encodeURIComponent(tagNamesParam)}&json=1`;
+      const apiKeyParam = apiKey || '';
+      const url = `https://gelbooru.com/index.php?page=dapi&s=tag&q=index&names=${encodeURIComponent(tagNamesParam)}&json=1${apiKeyParam}`;
       
       const response = await fetch(url, {
         headers: {

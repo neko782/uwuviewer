@@ -3,7 +3,7 @@ import { tagCacheManager } from '@/lib/tagCache';
 
 export async function POST(request: NextRequest) {
   try {
-    const { tags, site } = await request.json();
+    const { tags, site, apiKey } = await request.json();
 
     if (!tags || !Array.isArray(tags)) {
       return NextResponse.json(
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tagInfo = await tagCacheManager.getTagsInfo(site, tags);
+    const tagInfo = await tagCacheManager.getTagsInfo(site, tags, apiKey);
     
     return NextResponse.json(tagInfo);
   } catch (error) {

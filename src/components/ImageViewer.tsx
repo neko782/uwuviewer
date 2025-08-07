@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 interface ImageViewerProps {
   post: UnifiedPost | null;
   site: Site;
+  apiKey?: string;
   onClose: () => void;
   onTagClick?: (tag: string) => void;
 }
@@ -22,7 +23,7 @@ interface TagData {
   grouped: Record<string, string[]>;
 }
 
-export default function ImageViewer({ post, site, onClose, onTagClick }: ImageViewerProps) {
+export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }: ImageViewerProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [tagData, setTagData] = useState<TagData>({ tags: {}, grouped: {} });
 
@@ -42,7 +43,7 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
         fetch('/api/tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tags, site })
+          body: JSON.stringify({ tags, site, apiKey })
         })
           .then(res => res.json())
           .then(data => setTagData(data))
@@ -54,7 +55,7 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
-  }, [post, onClose, site]);
+  }, [post, onClose, site, apiKey]);
 
   if (!post) return null;
 
