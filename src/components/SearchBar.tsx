@@ -447,6 +447,7 @@ export default function SearchBar({
                     onClick={() => {
                       onDownloadTags(currentSite);
                       setShowFilters(false);
+                      setShowDownloadOption(false);
                     }}
                   >
                     Download tag cache
