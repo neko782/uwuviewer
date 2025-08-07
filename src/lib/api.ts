@@ -175,8 +175,9 @@ export class ImageBoardAPI {
       sample_url: (post.sample_url && post.sample_url !== '') ? post.sample_url : post.file_url,
       width: Number(post.width) || 0,
       height: Number(post.height) || 0,
-      preview_width: Number(post.preview_width) || 250,
-      preview_height: Number(post.preview_height) || 250,
+      // For Rule34, preview dimensions are not provided; fall back to original dimensions
+      preview_width: Number(post.preview_width) || Number(post.width) || 250,
+      preview_height: Number(post.preview_height) || Number(post.height) || 250,
       source: post.source || '',
       // has_children might be 'true'/'false', boolean, or missing
       has_children: post.has_children === true || post.has_children === 'true',

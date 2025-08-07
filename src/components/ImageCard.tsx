@@ -30,7 +30,8 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
 
   const ratingConfig = site === 'gelbooru.com' ? gelbooruRatingConfig : moebooruRatingConfig;
   const rating = ratingConfig[post.rating as keyof typeof ratingConfig] || ratingConfig.s;
-  const imageUrl = imageType === 'sample' ? post.sample_url : post.preview_url;
+  // Rule34 preview thumbs are square; prefer sample even in preview mode for better aspect
+  const imageUrl = site === 'rule34.xxx' ? (post.sample_url || post.preview_url) : (imageType === 'sample' ? post.sample_url : post.preview_url);
   
   // Calculate aspect ratio from post dimensions
   const aspectRatio = post.preview_height && post.preview_width 
