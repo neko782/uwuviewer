@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { ImageBoardAPI, UnifiedPost, Site } from '@/lib/api';
 import ImageCard from '@/components/ImageCard';
 import ImageViewer from '@/components/ImageViewer';
@@ -26,6 +27,7 @@ export default function Home() {
     }
     return '';
   });
+  const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
   
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey));
   const loadingRef = useRef(false);
@@ -71,6 +73,12 @@ export default function Home() {
     setIsInitialLoad(true);
     loadPosts(1, true, searchTags);
   }, [site, searchTags, apiKey, loadPosts]);
+
+  // On first app start (default provider selected), ask to download tags for the default site
+  useEffect(() => {
+    maybePromptOrAutoPrefetch(site);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage !== page && !loadingRef.current) {
@@ -174,6 +182,34 @@ export default function Home() {
     }
   }, []);
 
+  const getDownloadSizeLabel = useCallback((targetSite: Site) => {
+    if (targetSite === 'rule34.xxx') return 'about 100 MB';
+    if (targetSite === 'yande.re' || targetSite === 'konachan.com') return 'about 10 MB';
+    return '';
+  }, []);
+
+  const getConsent = (targetSite: Site): 'accepted' | 'declined' | null => {
+    if (typeof window === 'undefined') return null;
+    return (localStorage.getItem(`tag_prefetch_consent_${targetSite}`) as any) || null;
+  };
+
+  const setConsent = (targetSite: Site, value: 'accepted' | 'declined') => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(`tag_prefetch_consent_${targetSite}`, value);
+  };
+
+  const maybePromptOrAutoPrefetch = useCallback((targetSite: Site) => {
+    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx') return;
+    const c = getConsent(targetSite);
+    if (c === 'accepted') {
+      startTagPrefetch(targetSite);
+      return;
+    }
+    if (c === null) {
+      setTagPromptSite(targetSite);
+    }
+  }, [startTagPrefetch]);
+
   const handleSearch = (tags: string) => {
     // Only reset if the tags have actually changed
     if (tags !== searchTags) {
@@ -186,14 +222,15 @@ export default function Home() {
   };
 
   const handleSiteChange = (newSite: Site) => { 
-    // start downloading tags for supported sites as soon as site is switched
-    startTagPrefetch(newSite);
-
+    // On first switch to supported sites, ask consent to download tags
     setSite(newSite);
     setPosts([]);
     setPage(1);
     setHasMore(true);
     setError(null);
+
+    // Prompt or auto-prefetch based on prior consent
+    maybePromptOrAutoPrefetch(newSite);
     
     // Update search tags with the new site's default rating if current search is empty or only a rating
     const currentTags = searchTags.trim();
@@ -306,20 +343,55 @@ export default function Home() {
         )}
       </main>
 
-      <ImageViewer
-        post={selectedPost}
-        site={site}
-        apiKey={apiKey}
-        onClose={() => setSelectedPost(null)}
-        onTagClick={(tag) => {
-          setSearchTags(tag);
-          setPosts([]);
-          setPage(1);
-          setHasMore(true);
-        }}
-      />
+       <ImageViewer
+         post={selectedPost}
+         site={site}
+         apiKey={apiKey}
+         onClose={() => setSelectedPost(null)}
+         onTagClick={(tag) => {
+           setSearchTags(tag);
+           setPosts([]);
+           setPage(1);
+           setHasMore(true);
+         }}
+       />
 
-      <style jsx>{`
+       {tagPromptSite && typeof document !== 'undefined' && ReactDOM.createPortal(
+         <div className="modal-overlay" onClick={() => setTagPromptSite(null)}>
+           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+             <h3>Download tags for {tagPromptSite}?</h3>
+             <p className="modal-description">
+               To enable fast, offline tag autocomplete and colored tag info, we can download the full tag list for {tagPromptSite}. The average download size is {getDownloadSizeLabel(tagPromptSite)}.
+             </p>
+             <div className="modal-buttons">
+               <button
+                 className="modal-button save"
+                 onClick={() => {
+                   const s = tagPromptSite as Site;
+                   setConsent(s, 'accepted');
+                   setTagPromptSite(null);
+                   startTagPrefetch(s);
+                 }}
+               >
+                 Download tags
+               </button>
+               <button
+                 className="modal-button cancel"
+                 onClick={() => {
+                   const s = tagPromptSite as Site;
+                   setConsent(s, 'declined');
+                   setTagPromptSite(null);
+                 }}
+               >
+                 Not now
+               </button>
+             </div>
+           </div>
+         </div>,
+         document.body
+       )}
+ 
+       <style jsx>{`
         .app-container {
           min-height: 100vh;
           background: var(--bg-primary);
@@ -504,6 +576,66 @@ export default function Home() {
           }
 
 
+        }
+
+        /* Modal styles (shared look with other modals) */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+        .modal-content {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          padding: 24px;
+          max-width: 520px;
+          width: 90%;
+        }
+        .modal-content h3 {
+          margin: 0 0 12px 0;
+          color: var(--text-primary);
+          font-size: 18px;
+        }
+        .modal-description {
+          color: var(--text-secondary);
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+        .modal-buttons {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+        .modal-button {
+          padding: 8px 16px;
+          border: none;
+          border-radius: var(--radius-sm);
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .modal-button.save {
+          background: var(--accent);
+          color: white;
+        }
+        .modal-button.save:hover {
+          background: var(--accent-hover);
+        }
+        .modal-button.cancel {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+        .modal-button.cancel:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
         }
       `}</style>
     </div>
