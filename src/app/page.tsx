@@ -81,11 +81,14 @@ export default function Home() {
   }, [page, loadPosts]);
 
   const handleSearch = (tags: string) => {
-    setSearchTags(tags);
-    setPosts([]);
-    setPage(1);
-    setHasMore(true);
-    setError(null);
+    // Only reset if the tags have actually changed
+    if (tags !== searchTags) {
+      setSearchTags(tags);
+      setPosts([]);
+      setPage(1);
+      setHasMore(true);
+      setError(null);
+    }
   };
 
   const handleSiteChange = (newSite: Site) => {
