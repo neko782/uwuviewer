@@ -1,3 +1,7 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { tmpdir } from 'os';
+
 interface Tag {
   id: number;
   name: string;
@@ -8,6 +12,11 @@ interface Tag {
 
 interface TagCache {
   tags: Map<string, Tag>;
+  lastFetch: number;
+}
+
+interface SerializedCache {
+  tags: [string, Tag][];
   lastFetch: number;
 }
 
@@ -24,6 +33,47 @@ class TagCacheManager {
   private cache: TagCache | null = null;
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
   private fetchPromise: Promise<void> | null = null;
+  private readonly CACHE_FILE = path.join(tmpdir(), 'owo-tag-cache.json');
+
+  constructor() {
+    this.loadCacheFromDisk();
+  }
+
+  private async loadCacheFromDisk(): Promise<void> {
+    try {
+      const data = await fs.readFile(this.CACHE_FILE, 'utf-8');
+      const serialized: SerializedCache = JSON.parse(data);
+      
+      const now = Date.now();
+      if (now - serialized.lastFetch < this.CACHE_DURATION) {
+        this.cache = {
+          tags: new Map(serialized.tags),
+          lastFetch: serialized.lastFetch,
+        };
+        console.log(`Loaded ${this.cache.tags.size} tags from disk cache (age: ${Math.round((now - serialized.lastFetch) / 1000 / 60)} minutes)`);
+      } else {
+        console.log('Disk cache expired, will fetch fresh data');
+      }
+    } catch (error) {
+      console.log('No valid disk cache found, will fetch fresh data');
+    }
+  }
+
+  private async saveCacheToDisk(): Promise<void> {
+    if (!this.cache) return;
+    
+    try {
+      const serialized: SerializedCache = {
+        tags: Array.from(this.cache.tags.entries()),
+        lastFetch: this.cache.lastFetch,
+      };
+      
+      await fs.writeFile(this.CACHE_FILE, JSON.stringify(serialized));
+      console.log(`Saved ${this.cache.tags.size} tags to disk cache at ${this.CACHE_FILE}`);
+    } catch (error) {
+      console.error('Failed to save cache to disk:', error);
+    }
+  }
 
   async ensureCache(): Promise<void> {
     const now = Date.now();
@@ -44,7 +94,7 @@ class TagCacheManager {
 
   private async fetchTags(): Promise<void> {
     try {
-      console.log('Fetching yande.re tags...');
+      console.log('Fetching yande.re tags from API...');
       const response = await fetch('https://yande.re/tag.json?limit=0', {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -67,7 +117,10 @@ class TagCacheManager {
         lastFetch: Date.now(),
       };
 
-      console.log(`Cached ${tagMap.size} tags from yande.re`);
+      console.log(`Fetched and cached ${tagMap.size} tags from yande.re API`);
+      
+      // Save to disk after successful fetch
+      await this.saveCacheToDisk();
     } catch (error) {
       console.error('Error fetching tags:', error);
       // Keep existing cache if fetch fails
