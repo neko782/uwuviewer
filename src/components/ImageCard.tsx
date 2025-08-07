@@ -2,13 +2,19 @@
 
 import { UnifiedPost, Site } from '@/lib/api';
 import { proxyImageUrl } from '@/lib/imageProxy';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ImageCardProps {
   post: UnifiedPost;
   site?: Site;
   imageType?: 'preview' | 'sample';
   onClick: () => void;
+}
+
+interface TagInfo {
+  count: number;
+  type: number;
+  color: string;
 }
 
 const moebooruRatingConfig = {
@@ -27,6 +33,22 @@ const gelbooruRatingConfig = {
 export default function ImageCard({ post, site, imageType = 'preview', onClick }: ImageCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [tagInfo, setTagInfo] = useState<Record<string, TagInfo | null>>({});
+
+  useEffect(() => {
+    if (site === 'yande.re' && post.tags) {
+      const tags = post.tags.split(' ').filter(tag => tag.length > 0);
+      
+      fetch('/api/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags, site })
+      })
+        .then(res => res.json())
+        .then(data => setTagInfo(data))
+        .catch(err => console.error('Failed to fetch tag info:', err));
+    }
+  }, [post.tags, site]);
 
   const ratingConfig = site === 'gelbooru.com' ? gelbooruRatingConfig : moebooruRatingConfig;
   const rating = ratingConfig[post.rating as keyof typeof ratingConfig] || ratingConfig.s;
@@ -100,6 +122,28 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
       <div className="score-badge">
         ★ {post.score}
       </div>
+
+      {site === 'yande.re' && post.tags && (
+        <div className="tags-container">
+          {post.tags.split(' ').filter(tag => tag.length > 0).map((tag, index) => {
+            const info = tagInfo[tag];
+            return (
+              <span
+                key={index}
+                className="tag-badge"
+                style={{
+                  backgroundColor: info?.color || '#888888',
+                  opacity: info ? 1 : 0.7
+                }}
+                title={`${tag}${info ? ` (${info.count})` : ''}`}
+              >
+                {tag}
+                {info && <span className="tag-count">{info.count}</span>}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <div className="image-overlay" />
 
@@ -229,6 +273,68 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
           color: var(--text-primary);
           z-index: 1;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .tags-container {
+          position: absolute;
+          bottom: 40px;
+          left: 8px;
+          right: 8px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+          max-height: 100px;
+          overflow-y: auto;
+          z-index: 2;
+          padding: 4px;
+          background: rgba(0, 0, 0, 0.5);
+          border-radius: 6px;
+          backdrop-filter: blur(4px);
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+
+        .image-card:hover .tags-container {
+          opacity: 1;
+        }
+
+        .tag-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 500;
+          color: #fff;
+          white-space: nowrap;
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .tag-count {
+          font-size: 10px;
+          opacity: 0.9;
+          font-weight: 400;
+        }
+
+        .tags-container::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .tags-container::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 2px;
+        }
+
+        .tags-container::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 2px;
+        }
+
+        .tags-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.5);
         }
       `}</style>
     </div>
