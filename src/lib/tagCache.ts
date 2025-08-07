@@ -47,6 +47,26 @@ const GELBOORU_TAG_COLORS: Record<number, string> = {
   6: '#C62828', // Deprecated - dark red (like yandere faults)
 };
 
+// Rule34 shares tag semantics similar to Gelbooru but exposes
+// human-readable type strings via its autocomplete endpoint.
+// We'll map those types to numeric codes aligned with Gelbooru's scheme
+// for consistent coloring and grouping.
+const RULE34_TYPE_TO_NUM: Record<string, number> = {
+  'general': 0,
+  'artist': 1,
+  'copyright': 3,
+  'character': 4,
+  'metadata': 5,
+};
+
+const RULE34_TAG_COLORS: Record<number, string> = {
+  0: '#8B5A3C', // General
+  1: '#B8860B', // Artist
+  3: '#8B4789', // Copyright
+  4: '#2E7D32', // Character
+  5: '#1565C0', // Metadata
+};
+
 const YANDERE_TAG_TYPE_NAMES: Record<number, string> = {
   0: 'General',
   1: 'Artist',
@@ -263,6 +283,10 @@ class TagCacheManager {
     if (site === 'gelbooru.com') {
       return this.getGelbooruTagsInfo(tagNames, apiKey);
     }
+    // Handle Rule34 via its autocomplete API
+    if (site === 'rule34.xxx') {
+      return this.getRule34TagsInfo(tagNames);
+    }
     
     await this.ensureCache(site);
     
@@ -302,6 +326,76 @@ class TagCacheManager {
       }
     }
     
+    // Remove empty groups
+    for (const key in grouped) {
+      if (grouped[key].length === 0) {
+        delete grouped[key];
+      }
+    }
+
+    return { tags, grouped };
+  }
+
+  private async getRule34TagsInfo(tagNames: string[]): Promise<{
+    tags: Record<string, { count: number; type: number; color: string } | null>;
+    grouped: Record<string, string[]>;
+  }> {
+    const tags: Record<string, { count: number; type: number; color: string } | null> = {};
+    const grouped: Record<string, string[]> = {};
+
+    const RULE34_TYPE_NAMES: Record<number, string> = {
+      0: 'General',
+      1: 'Artist',
+      3: 'Copyright',
+      4: 'Character',
+      5: 'Metadata',
+    };
+
+    // Initialize groups
+    for (const typeNum in RULE34_TYPE_NAMES) {
+      grouped[RULE34_TYPE_NAMES[typeNum as unknown as number]] = [];
+    }
+    grouped['Unknown'] = [];
+
+    // Fetch info for each tag using the autocomplete endpoint
+    // We must include Origin and Referer headers
+    await Promise.all(tagNames.map(async (tagName) => {
+      try {
+        const url = `https://ac.rule34.xxx/autocomplete.php?q=${encodeURIComponent(tagName)}`;
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Origin': 'https://rule34.xxx',
+            'Referer': 'https://rule34.xxx/',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch Rule34 tag: ${response.status}`);
+        }
+
+        const data: Array<{ label: string; value: string; type: string }> = await response.json();
+        const exact = data.find((d) => d.value === tagName);
+        if (exact) {
+          // Extract count from label e.g., "tag_name (1234)"
+          const match = exact.label.match(/\(([\d,]+)\)$/);
+          const count = match ? parseInt(match[1].replace(/,/g, ''), 10) : 0;
+          const typeNum = RULE34_TYPE_TO_NUM[exact.type] ?? 0;
+          const color = RULE34_TAG_COLORS[typeNum] || '#888888';
+
+          tags[tagName] = { count, type: typeNum, color };
+          grouped[RULE34_TYPE_NAMES[typeNum]].push(tagName);
+        } else {
+          tags[tagName] = null;
+          grouped['Unknown'].push(tagName);
+        }
+      } catch (error) {
+        console.error('Error fetching Rule34 tag:', tagName, error);
+        tags[tagName] = null;
+        grouped['Unknown'].push(tagName);
+      }
+    }));
+
     // Remove empty groups
     for (const key in grouped) {
       if (grouped[key].length === 0) {
@@ -395,6 +489,8 @@ export {
   GELBOORU_TAG_COLORS,
   YANDERE_TAG_TYPE_NAMES, 
   KONACHAN_TAG_TYPE_NAMES,
-  GELBOORU_TAG_TYPE_NAMES
+  GELBOORU_TAG_TYPE_NAMES,
+  RULE34_TYPE_TO_NUM,
+  RULE34_TAG_COLORS
 };
 export type { Tag };

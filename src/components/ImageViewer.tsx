@@ -36,8 +36,8 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
       
-      // Fetch tag info for yande.re, konachan.com, and gelbooru.com
-      if ((site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com') && post.tags) {
+      // Fetch tag info for yande.re, konachan.com, gelbooru.com and rule34.xxx
+      if ((site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx') && post.tags) {
         const tags = post.tags.split(' ').filter(tag => tag.length > 0);
         
         fetch('/api/tags', {

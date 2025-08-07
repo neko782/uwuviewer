@@ -3,7 +3,9 @@ import {
   tagCacheManager,
   YANDERE_TAG_COLORS,
   KONACHAN_TAG_COLORS,
-  GELBOORU_TAG_COLORS 
+  GELBOORU_TAG_COLORS,
+  RULE34_TAG_COLORS,
+  RULE34_TYPE_TO_NUM,
 } from '@/lib/tagCache';
 
 interface GelbooruTag {
@@ -21,6 +23,8 @@ interface CacheEntry {
 
 // In-memory cache for Gelbooru autocomplete results
 const gelbooruAutocompleteCache = new Map<string, CacheEntry>();
+// In-memory cache for Rule34 autocomplete results (same shape as GelbooruTag sans 'type' mapping)
+const rule34AutocompleteCache = new Map<string, CacheEntry>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache duration
 
 // Clean up old cache entries periodically
@@ -129,6 +133,70 @@ async function fetchGelbooruSuggestions(query: string, apiKey?: string): Promise
   }
 }
 
+interface Rule34Item { label: string; value: string; type: string }
+
+async function fetchRule34Suggestions(query: string): Promise<Array<{ name: string; count: number; typeNum: number }>> {
+  const cacheKey = query.toLowerCase();
+  const cached = rule34AutocompleteCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    // Transform cached GelbooruTag shape into our return shape
+    return cached.data.map((t) => ({ name: t.name, count: t.count, typeNum: t.type }));
+  }
+
+  try {
+    const url = `https://ac.rule34.xxx/autocomplete.php?q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Origin': 'https://rule34.xxx',
+        'Referer': 'https://rule34.xxx/',
+      },
+    });
+    if (!res.ok) return [];
+    const data: Rule34Item[] = await res.json();
+
+    // Deduplicate by value, prefer exact match first
+    const map = new Map<string, Rule34Item>();
+    for (const item of data) {
+      if (!map.has(item.value)) map.set(item.value, item);
+    }
+
+    const items = Array.from(map.values());
+
+    const sorted = items.sort((a, b) => {
+      const aExact = a.value.toLowerCase() === query.toLowerCase();
+      const bExact = b.value.toLowerCase() === query.toLowerCase();
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+      // sort by parsed count desc
+      const ac = parseInt((a.label.match(/\(([\d,]+)\)$/)?.[1] || '0').replace(/,/g, ''), 10);
+      const bc = parseInt((b.label.match(/\(([\d,]+)\)$/)?.[1] || '0').replace(/,/g, ''), 10);
+      return bc - ac;
+    }).slice(0, 10);
+
+    const results = sorted.map((item) => {
+      const count = parseInt((item.label.match(/\(([\d,]+)\)$/)?.[1] || '0').replace(/,/g, ''), 10);
+      const typeNum = RULE34_TYPE_TO_NUM[item.type] ?? 0;
+      return { name: item.value, count, typeNum };
+    });
+
+    // Cache using GelbooruTag-compatible shape for reuse
+    const cacheData: GelbooruTag[] = results.map((r, idx) => ({
+      id: idx,
+      name: r.name,
+      count: r.count,
+      type: r.typeNum,
+      ambiguous: false,
+    }));
+    rule34AutocompleteCache.set(cacheKey, { data: cacheData, timestamp: Date.now() });
+
+    return results;
+  } catch (e) {
+    console.error('Rule34 autocomplete error:', e);
+    return [];
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -152,6 +220,18 @@ export async function GET(request: NextRequest) {
         color: GELBOORU_TAG_COLORS[tag.type] || '#888888',
       }));
       
+      return NextResponse.json({ suggestions });
+    }
+
+    // Handle Rule34 via its autocomplete endpoint
+    if (site === 'rule34.xxx') {
+      const items = await fetchRule34Suggestions(query);
+      const suggestions = items.map((it) => ({
+        name: it.name,
+        count: it.count,
+        type: it.typeNum,
+        color: RULE34_TAG_COLORS[it.typeNum] || '#888888',
+      }));
       return NextResponse.json({ suggestions });
     }
 
