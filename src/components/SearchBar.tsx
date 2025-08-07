@@ -96,14 +96,14 @@ export default function SearchBar({
       return;
     }
 
-    // Only fetch for yande.re and konachan
-    if (currentSite !== 'yande.re' && currentSite !== 'konachan.com') {
-      return;
-    }
-
     try {
+      // Include API key for Gelbooru
+      const apiKeyParam = currentSite === 'gelbooru.com' && currentApiKey 
+        ? `&apiKey=${encodeURIComponent(currentApiKey)}` 
+        : '';
+      
       const response = await fetch(
-        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}`
+        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}${apiKeyParam}`
       );
       const data = await response.json();
       setSuggestions(data.suggestions || []);
@@ -114,7 +114,7 @@ export default function SearchBar({
       setSuggestions([]);
       setShowSuggestions(false);
     }
-  }, [currentSite]);
+  }, [currentSite, currentApiKey]);
 
   const getTagAtCursor = useCallback((input: string, cursorPos: number) => {
     // Find the start of the current tag (after the last space before cursor, or start of string)
@@ -154,10 +154,10 @@ export default function SearchBar({
       return;
     }
     
-    // Set new debounce timer
+    // Set new debounce timer (1 second delay to avoid rate limiting)
     debounceTimerRef.current = setTimeout(() => {
       fetchSuggestions(tag);
-    }, 300);
+    }, 1000);
   }, [fetchSuggestions, getTagAtCursor]);
 
   const applySuggestion = useCallback((suggestion: TagSuggestion) => {
