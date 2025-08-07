@@ -155,10 +155,15 @@ export default function SearchBar({
       return;
     }
     
-    // Set new debounce timer (1 second delay to avoid rate limiting)
-    debounceTimerRef.current = setTimeout(() => {
+    // Set debounce based on site (instant for rule34 cache, delay elsewhere)
+    const delay = currentSite === 'rule34.xxx' ? 0 : 1000;
+    if (delay === 0) {
       fetchSuggestions(tag);
-    }, 1000);
+    } else {
+      debounceTimerRef.current = setTimeout(() => {
+        fetchSuggestions(tag);
+      }, delay);
+    }
   }, [fetchSuggestions, getTagAtCursor]);
 
   const applySuggestion = useCallback((suggestion: TagSuggestion) => {
