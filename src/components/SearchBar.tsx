@@ -64,7 +64,7 @@ export default function SearchBar({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const skipNextFetchRef = useRef(false);
+  const isApplyingSuggestionRef = useRef(false);
 
   useEffect(() => {
     setSearchInput(searchTags);
@@ -134,11 +134,8 @@ export default function SearchBar({
     setSearchInput(value);
     setCursorPosition(cursorPos);
     
-    // Skip fetching if this change was from applying a suggestion
-    if (skipNextFetchRef.current) {
-      skipNextFetchRef.current = false;
-      setShowSuggestions(false);
-      setSuggestions([]);
+    // If we're applying a suggestion, don't do anything else
+    if (isApplyingSuggestionRef.current) {
       return;
     }
     
@@ -150,8 +147,8 @@ export default function SearchBar({
       clearTimeout(debounceTimerRef.current);
     }
     
-    // If the tag ends with a space or is empty, don't fetch suggestions
-    if (tag.trim() === '' || tag.endsWith(' ')) {
+    // If the cursor is right after a space or the tag is empty, hide suggestions
+    if (tag.trim() === '' || value[cursorPos - 1] === ' ') {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -164,33 +161,42 @@ export default function SearchBar({
   }, [fetchSuggestions, getTagAtCursor]);
 
   const applySuggestion = useCallback((suggestion: TagSuggestion) => {
+    // Clear any pending debounce timer first
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    
+    // Set flag before making any changes
+    isApplyingSuggestionRef.current = true;
+    
     const { start } = getTagAtCursor(searchInput, cursorPosition);
     // Insert the suggestion at the cursor position, replacing only what was typed
     // and add a space after the suggestion
     const beforeCursor = searchInput.substring(0, start);
     const afterCursor = searchInput.substring(cursorPosition);
     const newValue = beforeCursor + suggestion.name + ' ' + afterCursor;
+    const newCursorPos = start + suggestion.name.length + 1; // +1 for the space
     
-    // Set flag to skip the next fetch triggered by the input change
-    skipNextFetchRef.current = true;
-    
-    setSearchInput(newValue);
+    // Hide suggestions immediately
     setShowSuggestions(false);
     setSuggestions([]);
     
-    // Clear any pending debounce timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+    // Update the input value
+    setSearchInput(newValue);
+    setCursorPosition(newCursorPos);
     
     // Focus back on input and set cursor position after the inserted tag and space
     if (searchInputRef.current) {
       searchInputRef.current.focus();
-      const newCursorPos = start + suggestion.name.length + 1; // +1 for the space
-      setTimeout(() => {
-        searchInputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
-        setCursorPosition(newCursorPos);
-      }, 0);
+      // Use requestAnimationFrame to ensure this happens after React's render
+      requestAnimationFrame(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+        // Reset the flag after everything is done
+        isApplyingSuggestionRef.current = false;
+      });
     }
   }, [searchInput, cursorPosition, getTagAtCursor]);
 
@@ -303,11 +309,24 @@ export default function SearchBar({
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={(e) => {
-              setCursorPosition(e.target.selectionStart || 0);
-              const { tag } = getTagAtCursor(searchInput, e.target.selectionStart || 0);
-              if (tag.length >= 2) {
-                fetchSuggestions(tag);
+              const cursorPos = e.target.selectionStart || 0;
+              setCursorPosition(cursorPos);
+              // Don't fetch if cursor is right after a space
+              if (searchInput[cursorPos - 1] !== ' ') {
+                const { tag } = getTagAtCursor(searchInput, cursorPos);
+                if (tag.length >= 2) {
+                  fetchSuggestions(tag);
+                }
               }
+            }}
+            onBlur={() => {
+              // Hide suggestions when input loses focus
+              // The timeout allows click events on suggestions to fire first
+              setTimeout(() => {
+                if (!isApplyingSuggestionRef.current) {
+                  setShowSuggestions(false);
+                }
+              }, 200);
             }}
             placeholder="Search tags..."
             className="search-input"
@@ -319,7 +338,15 @@ export default function SearchBar({
                 <div
                   key={suggestion.name}
                   className={`autocomplete-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
-                  onClick={() => applySuggestion(suggestion)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    applySuggestion(suggestion);
+                  }}
+                  onMouseDown={(e) => {
+                    // Prevent blur event on input
+                    e.preventDefault();
+                  }}
                   onMouseEnter={() => setSelectedSuggestionIndex(index)}
                 >
                   <span 
