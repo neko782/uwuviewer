@@ -11,8 +11,15 @@ interface ImageViewerProps {
   onTagClick?: (tag: string) => void;
 }
 
+interface TagInfo {
+  count: number;
+  type: number;
+  color: string;
+}
+
 export default function ImageViewer({ post, site, onClose, onTagClick }: ImageViewerProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [tagInfo, setTagInfo] = useState<Record<string, TagInfo | null>>({});
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -22,13 +29,27 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
     if (post) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
+      
+      // Fetch tag info for yande.re
+      if (site === 'yande.re' && post.tags) {
+        const tags = post.tags.split(' ').filter(tag => tag.length > 0);
+        
+        fetch('/api/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags, site })
+        })
+          .then(res => res.json())
+          .then(data => setTagInfo(data))
+          .catch(err => console.error('Failed to fetch tag info:', err));
+      }
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
-  }, [post, onClose]);
+  }, [post, onClose, site]);
 
   if (!post) return null;
 
@@ -100,20 +121,30 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
           <div className="info-section">
             <h3>Tags</h3>
             <div className="tags-container">
-              {post.tags.split(' ').slice(0, 20).map((tag, index) => (
-                <button
-                  key={index}
-                  className="tag"
-                  onClick={() => {
-                    if (onTagClick) {
-                      onTagClick(tag);
-                      onClose();
-                    }
-                  }}
-                >
-                  {tag.replace(/_/g, ' ')}
-                </button>
-              ))}
+              {post.tags.split(' ').filter(tag => tag.length > 0).map((tag, index) => {
+                const info = site === 'yande.re' ? tagInfo[tag] : null;
+                return (
+                  <button
+                    key={index}
+                    className="tag"
+                    style={info ? {
+                      backgroundColor: info.color,
+                      color: '#fff',
+                      border: 'none'
+                    } : {}}
+                    onClick={() => {
+                      if (onTagClick) {
+                        onTagClick(tag);
+                        onClose();
+                      }
+                    }}
+                    title={info ? `${tag} (${info.count} posts)` : tag}
+                  >
+                    {tag.replace(/_/g, ' ')}
+                    {info && <span className="tag-count">({info.count})</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -314,15 +345,26 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
           border-radius: var(--radius-sm);
           font-size: 12px;
           color: var(--text-secondary);
-          transition: background 0.2s ease, color 0.2s ease;
-          border: none;
+          transition: all 0.2s ease;
+          border: 1px solid transparent;
           cursor: pointer;
           font-family: inherit;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
         }
 
         .tag:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .tag-count {
+          font-size: 10px;
+          opacity: 0.9;
+          font-weight: 500;
         }
 
         .info-actions {
