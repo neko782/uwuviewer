@@ -14,8 +14,39 @@ interface GelbooruTag {
   ambiguous: boolean;
 }
 
+interface CacheEntry {
+  data: GelbooruTag[];
+  timestamp: number;
+}
+
+// In-memory cache for Gelbooru autocomplete results
+const gelbooruAutocompleteCache = new Map<string, CacheEntry>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache duration
+
+// Clean up old cache entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of gelbooruAutocompleteCache.entries()) {
+    if (now - entry.timestamp > CACHE_DURATION) {
+      gelbooruAutocompleteCache.delete(key);
+    }
+  }
+}, 60 * 1000); // Clean up every minute
+
 async function fetchGelbooruSuggestions(query: string, apiKey?: string): Promise<GelbooruTag[]> {
+  // Create cache key based on query and API key presence
+  const cacheKey = `${query.toLowerCase()}_${apiKey ? 'auth' : 'noauth'}`;
+  
+  // Check cache first
+  const cached = gelbooruAutocompleteCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log(`Cache hit for Gelbooru autocomplete: ${query}`);
+    return cached.data;
+  }
+  
   try {
+    console.log(`Cache miss for Gelbooru autocomplete: ${query}, fetching from API...`);
+    
     // Make two parallel requests:
     // 1. Search for tags starting with the query using name_pattern
     // 2. Check if exact tag exists using name
@@ -47,8 +78,11 @@ async function fetchGelbooruSuggestions(query: string, apiKey?: string): Promise
       return [];
     }
 
-    const patternData = await patternResponse.json();
-    const exactData = await exactResponse.json();
+    // Parse both responses in parallel
+    const [patternData, exactData] = await Promise.all([
+      patternResponse.json(),
+      exactResponse.json()
+    ]);
     
     const patternTags: GelbooruTag[] = patternData.tag || [];
     const exactTag: GelbooruTag | undefined = exactData.tag?.[0];
@@ -72,13 +106,23 @@ async function fetchGelbooruSuggestions(query: string, apiKey?: string): Promise
     const results = Array.from(tagMap.values());
     
     // Sort by relevance: exact match first, then by count
-    return results.sort((a, b) => {
+    const sortedResults = results.sort((a, b) => {
       const aExact = a.name.toLowerCase() === query.toLowerCase();
       const bExact = b.name.toLowerCase() === query.toLowerCase();
       if (aExact && !bExact) return -1;
       if (!aExact && bExact) return 1;
       return b.count - a.count;
     }).slice(0, 10);
+    
+    // Cache the results
+    gelbooruAutocompleteCache.set(cacheKey, {
+      data: sortedResults,
+      timestamp: Date.now()
+    });
+    
+    console.log(`Cached ${sortedResults.length} results for query: ${query}`);
+    
+    return sortedResults;
   } catch (error) {
     console.error('Error fetching Gelbooru suggestions:', error);
     return [];
