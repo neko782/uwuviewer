@@ -82,8 +82,15 @@ export default function Home() {
   }, [page, loadPosts]);
 
   // Start tags prefetch for supported sites with a toast
+  const prefetchingSitesRef = useRef<Set<Site>>(new Set());
+  const toastIdsRef = useRef<Map<Site, string | number>>(new Map());
+
   const startTagPrefetch = useCallback(async (targetSite: Site) => {
     if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx') return;
+
+    // prevent parallel duplicate prefetches and duplicate toasts per site
+    if (prefetchingSitesRef.current.has(targetSite)) return;
+    prefetchingSitesRef.current.add(targetSite);
 
     try {
       // Check current status first
@@ -96,29 +103,47 @@ export default function Home() {
         return;
       }
 
-      // Show an indeterminate progress toast
-      const id = toast.custom(() => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontWeight: 600 }}>Downloading tags for {targetSite}…</div>
-          <div style={{ width: 280, height: 6, background: 'var(--bg-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
-            <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite' }} />
+      // Create or reuse an indeterminate progress toast with libadwaita-like card styling
+      let id = toastIdsRef.current.get(targetSite);
+      if (id === undefined) {
+        id = toast.custom(() => (
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 10,
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-default)',
+            borderRadius: '12px',
+            padding: 14,
+            minWidth: 300,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 9999, background: 'var(--accent)' }} />
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Preparing tags</div>
+            </div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
+            <div style={{ width: '100%', height: 8, background: 'var(--bg-tertiary)', borderRadius: 9999, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite', borderRadius: 9999 }} />
+            </div>
+            <style jsx>{`
+              @keyframes indeterminate {
+                0% { transform: translateX(-100%); }
+                50% { transform: translateX(50%); }
+                100% { transform: translateX(200%); }
+              }
+            `}</style>
           </div>
-          <style jsx>{`
-            @keyframes indeterminate {
-              0% { transform: translateX(-100%); }
-              50% { transform: translateX(50%); }
-              100% { transform: translateX(200%); }
-            }
-          `}</style>
-        </div>
-      ), { duration: Infinity });
+        ), { duration: Infinity });
+        toastIdsRef.current.set(targetSite, id);
+      }
 
-      // Kick off background refresh
-      await fetch('/api/tags/prepare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site: targetSite })
-      });
+      // Kick off background refresh only if not already in progress
+      if (!status?.inProgress) {
+        await fetch('/api/tags/prepare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ site: targetSite })
+        });
+      }
 
       // Poll for completion
       const started = Date.now();
@@ -129,19 +154,23 @@ export default function Home() {
         const st = await res.json();
         if (st && st.fresh && st.hasCache && st.size > 0 && !st.inProgress) {
           done = true;
-          toast.dismiss(id);
+          if (id !== undefined) toast.dismiss(id);
+          toastIdsRef.current.delete(targetSite);
           toast.success(`Downloaded ${st.size.toLocaleString()} ${targetSite} tags`);
           break;
         }
       }
 
       if (!done) {
-        toast.dismiss(id);
+        if (id !== undefined) toast.dismiss(id);
+        toastIdsRef.current.delete(targetSite);
         toast.message(`Tag download for ${targetSite} is still running in background`);
       }
     } catch (e) {
       console.error('Prefetch failed', e);
       toast.error('Failed to prefetch tags');
+    } finally {
+      prefetchingSitesRef.current.delete(targetSite);
     }
   }, []);
 

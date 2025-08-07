@@ -296,6 +296,15 @@ class TagCacheManager {
         const tagMap = new Map<string, Tag>();
 
         const parser = new SaxesParser();
+        parser.on('error', (e: any) => {
+          console.error(`XML parse error for ${site}:`, e?.message || e);
+          // swallow to continue parsing subsequent chunks
+        });
+        const sanitizeXmlChunk = (chunk: string): string => {
+          // Remove characters not allowed in XML 1.0
+          // Allowed: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD]
+          return chunk.replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD]/g, '');
+        };
         parser.on('opentag', (node: any) => {
           if (!node || !node.name) return;
           const name = String(node.name).toLowerCase();
@@ -319,15 +328,25 @@ class TagCacheManager {
         const reader = (response.body as any).getReader?.();
         if (!reader) {
           // Fallback: load entire text (may be heavy); try to parse anyway
-          const text = await response.text();
-          parser.write(text);
-          parser.close();
-        } else {
+           const text = await response.text();
+           const sanitized = text.replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD]/g, '');
+           try {
+             parser.write(sanitized);
+           } catch (e) {
+             console.error(`Parser write failed for ${site}:`, e);
+           }
+           parser.close();        } else {
           const decoder = new TextDecoder();
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
-            parser.write(decoder.decode(value, { stream: true }));
+            const decoded = decoder.decode(value, { stream: true });
+            const sanitized = sanitizeXmlChunk(decoded);
+            try {
+              parser.write(sanitized);
+            } catch (e) {
+              console.error(`Parser write failed for ${site}:`, e);
+            }
           }
           parser.close();
         }
