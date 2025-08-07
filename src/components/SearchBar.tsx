@@ -48,7 +48,7 @@ export default function SearchBar({
     { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico', defaultRating: 'rating:safe' },
     { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico', defaultRating: 'rating:safe' },
     { value: 'gelbooru.com', label: 'Gelbooru', icon: '/gelbooru.ico', needsApiKey: true, defaultRating: 'rating:general' },
-    { value: 'e621.net', label: 'e621', icon: '/e621.svg', defaultRating: 'rating:s' },
+    { value: 'e621.net', label: 'e621', icon: '/e621.ico', defaultRating: 'rating:safe' },
     { value: 'rule34.xxx', label: 'Rule34', icon: '/rule34.ico', defaultRating: '' }
   ];
 

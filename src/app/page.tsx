@@ -240,7 +240,7 @@ export default function Home() {
                          currentTags === '';
     
     if (isOnlyRating) {
-      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : newSite === 'rule34.xxx' ? '' : newSite === 'e621.net' ? 'rating:s' : 'rating:safe';
+      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : newSite === 'rule34.xxx' ? '' : newSite === 'e621.net' ? 'rating:safe' : 'rating:safe';
       setSearchTags(defaultRating);
     }
   };
