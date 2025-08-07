@@ -102,7 +102,7 @@ export default function SearchBar({
 
     try {
       const response = await fetch(
-        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}&apiKey=${currentApiKey}`
+        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}`
       );
       const data = await response.json();
       setSuggestions(data.suggestions || []);
@@ -113,7 +113,7 @@ export default function SearchBar({
       setSuggestions([]);
       setShowSuggestions(false);
     }
-  }, [currentSite, currentApiKey]);
+  }, [currentSite]);
 
   const getTagAtCursor = useCallback((input: string, cursorPos: number) => {
     // Find the start of the current tag (after the last space before cursor, or start of string)
