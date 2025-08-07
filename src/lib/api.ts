@@ -107,6 +107,11 @@ export class ImageBoardAPI {
     this.site = site;
     this.apiKey = apiKey;
     
+    // Rule34 does not use an API key
+    if (site === 'rule34.xxx') {
+      this.apiKey = '';
+    }
+    
     if (site === 'gelbooru.com') {
       this.baseUrl = 'https://gelbooru.com';
       this.apiType = 'gelbooru';
