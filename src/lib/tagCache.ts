@@ -97,6 +97,24 @@ const GELBOORU_TAG_TYPE_NAMES: Record<number, string> = {
 };
 
 class TagCacheManager { 
+  // Ensure in-memory cache is populated from disk without network fetches
+  public async ensureCacheLoadedFromDisk(site: string): Promise<void> {
+    // If already loaded, nothing to do
+    if (this.caches.has(site)) return;
+
+    // Reuse loadPromises to avoid duplicate loads
+    let loadPromise = this.loadPromises.get(site);
+    if (!loadPromise) {
+      loadPromise = this.loadCacheFromDisk(site);
+      this.loadPromises.set(site, loadPromise);
+    }
+    try {
+      await loadPromise;
+    } finally {
+      this.loadPromises.delete(site);
+    }
+  }
+
   // Returns basic cache stats without triggering network fetches
   async getCacheStats(site: string): Promise<{ hasCache: boolean; fresh: boolean; size: number; lastFetch: number | null; inProgress: boolean; }> {
     // If a disk load is in progress, wait
@@ -444,6 +462,8 @@ class TagCacheManager {
     }
     
     // Do NOT trigger network fetches here; only use cache if present
+    // But make sure we load from disk if available
+    await this.ensureCacheLoadedFromDisk(site);
     const cache = this.caches.get(site);
     if (!cache) {
       // Return all unknowns when cache is not yet ready
@@ -514,7 +534,8 @@ class TagCacheManager {
     }
     grouped['Unknown'] = [];
 
-    // If cache is not ready, do NOT trigger downloads here; return unknowns only
+    // If cache is not ready, first try to load from disk; do NOT trigger downloads here
+    await this.ensureCacheLoadedFromDisk('rule34.xxx');
     const cache = this.caches.get('rule34.xxx');
     if (!cache) {
       for (const tagName of tagNames) {

@@ -226,6 +226,8 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
 
     // Handle Rule34: use local cache ONLY; do not fallback to ac.rule34 to avoid spamming
     if (site === 'rule34.xxx') {
+      // Ensure disk cache is loaded into memory (no network)
+      await tagCacheManager.ensureCacheLoadedFromDisk('rule34.xxx');
       const tags = tagCacheManager.searchCachedTagsOnly('rule34.xxx', query, 10);
       const suggestions = tags.map(tag => ({
         name: tag.name,
@@ -240,6 +242,9 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
     if (site !== 'yande.re' && site !== 'konachan.com') {
       return NextResponse.json({ suggestions: [] });
     }
+
+    // Ensure disk cache is loaded into memory (no network)
+    await tagCacheManager.ensureCacheLoadedFromDisk(site);
 
     // Search the cached tags without initiating network fetches
     const tags = tagCacheManager.searchCachedTagsOnly(site, query, 10);
