@@ -67,7 +67,7 @@ export default function SearchBar({
         setSearchInput(newSiteData.defaultRating);
       }
     }
-  }, [currentSite, searchInput]);
+  }, [currentSite]); // Only run when currentSite changes, not on every searchInput change
 
   useEffect(() => {
     setApiKeyInput(currentApiKey);
