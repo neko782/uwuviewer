@@ -74,7 +74,7 @@ export default function SearchBar({
   }, [currentApiKey]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setShowFilters(false);
       }
@@ -83,8 +83,13 @@ export default function SearchBar({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    // Use 'click' instead of 'mousedown' to prevent closing before selection on mobile
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('touchend', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('touchend', handleClickOutside);
+    };
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -100,7 +105,10 @@ export default function SearchBar({
           <button
             type="button"
             className="site-selector-button"
-            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowSiteDropdown(!showSiteDropdown);
+            }}
           >
             <Image
               src={currentSiteData.icon}
@@ -116,13 +124,14 @@ export default function SearchBar({
           </button>
           
           {showSiteDropdown && (
-            <div className="site-dropdown" onMouseDown={(e) => e.preventDefault()}>
+            <div className="site-dropdown">
               {sites.map((site) => (
                 <button
                   key={site.value}
                   type="button"
                   className={`site-option ${currentSite === site.value ? 'active' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onSiteChange(site.value);
                     setShowSiteDropdown(false);
                   }}
@@ -160,7 +169,10 @@ export default function SearchBar({
           <button
             type="button"
             className="filter-button"
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowFilters(!showFilters);
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M3 4h18M3 12h18M3 20h18" 
@@ -169,7 +181,7 @@ export default function SearchBar({
           </button>
 
           {showFilters && (
-            <div className="filter-dropdown" onMouseDown={(e) => e.preventDefault()}>
+            <div className="filter-dropdown">
               <div className="filter-section">
                 <label className="filter-label">Image Quality</label>
                 <div className="filter-options">
@@ -222,7 +234,10 @@ export default function SearchBar({
           <button
             type="button"
             className="site-selector-button"
-            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowSiteDropdown(!showSiteDropdown);
+            }}
           >
             <Image
               src={currentSiteData.icon}
@@ -238,13 +253,14 @@ export default function SearchBar({
           </button>
           
           {showSiteDropdown && (
-            <div className="site-dropdown" onMouseDown={(e) => e.preventDefault()}>
+            <div className="site-dropdown">
               {sites.map((site) => (
                 <button
                   key={site.value}
                   type="button"
                   className={`site-option ${currentSite === site.value ? 'active' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onSiteChange(site.value);
                     setShowSiteDropdown(false);
                   }}
