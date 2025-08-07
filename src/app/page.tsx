@@ -176,6 +176,7 @@ export default function Home() {
             <ImageCard
               key={post.id}
               post={post}
+              site={site}
               imageType={imageType}
               onClick={() => setSelectedPost(post)}
             />

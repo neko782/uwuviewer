@@ -176,23 +176,24 @@ export class ImageBoardAPI {
   }
 
   private normalizeGelbooruRating(rating: string): string {
-    // Gelbooru uses full words for ratings, not single letters
-    // From your example: "questionable" instead of "q"
+    // Gelbooru uses full words for ratings: general, sensitive, questionable, explicit
     if (!rating) return 's';
     
     const lowerRating = rating.toLowerCase();
     
-    // Check full words first
+    // Check full words - keep sensitive as its own rating for Gelbooru
     if (lowerRating === 'general' || lowerRating === 'safe') return 's';
-    if (lowerRating === 'questionable' || lowerRating === 'sensitive') return 'q';
+    if (lowerRating === 'sensitive') return 'sensitive';
+    if (lowerRating === 'questionable') return 'q';
     if (lowerRating === 'explicit') return 'e';
     
     // Fallback to first character
     const firstChar = lowerRating.charAt(0);
     switch(firstChar) {
       case 'g': // general
-      case 's': // safe
         return 's';
+      case 's': // sensitive or safe - default to sensitive for Gelbooru
+        return 'sensitive';
       case 'q': // questionable
         return 'q';
       case 'e': // explicit
@@ -204,9 +205,10 @@ export class ImageBoardAPI {
 
   private denormalizeRatingForGelbooru(rating: string): string {
     // Convert our standard ratings to Gelbooru format
-    // Gelbooru uses "general" instead of "safe"
+    // Gelbooru uses "general", "sensitive", "questionable", "explicit"
     const ratingMap: { [key: string]: string } = {
       's': 'general',
+      'sensitive': 'sensitive',
       'q': 'questionable',
       'e': 'explicit',
     };
@@ -393,7 +395,7 @@ export class ImageBoardAPI {
 
 // Export for backward compatibility
 export class MoebooruAPI extends ImageBoardAPI {
-  constructor(site: Site = 'yande.re') {
-    super(site);
+  constructor(_site: Site = 'yande.re') {
+    super(_site);
   }
 }

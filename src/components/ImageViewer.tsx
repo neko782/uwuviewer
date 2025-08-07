@@ -73,8 +73,14 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
               
               <span className="info-label">Rating</span>
               <span className="info-value">{
-                post.rating === 's' ? 'Safe' :
-                post.rating === 'q' ? 'Questionable' : 'Explicit'
+                site === 'gelbooru.com' ? (
+                  post.rating === 's' ? 'General' :
+                  post.rating === 'sensitive' ? 'Sensitive' :
+                  post.rating === 'q' ? 'Questionable' : 'Explicit'
+                ) : (
+                  post.rating === 's' ? 'Safe' :
+                  post.rating === 'q' ? 'Questionable' : 'Explicit'
+                )
               }</span>
               
               <span className="info-label">Score</span>

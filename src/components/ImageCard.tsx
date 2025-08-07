@@ -1,25 +1,34 @@
 'use client';
 
-import { UnifiedPost } from '@/lib/api';
+import { UnifiedPost, Site } from '@/lib/api';
 import { proxyImageUrl } from '@/lib/imageProxy';
 import { useState } from 'react';
 
 interface ImageCardProps {
   post: UnifiedPost;
+  site?: Site;
   imageType?: 'preview' | 'sample';
   onClick: () => void;
 }
 
-const ratingConfig = {
+const moebooruRatingConfig = {
   s: { label: 'Safe', color: '#4ade80', bg: '#166534' },
   q: { label: 'Questionable', color: '#fbbf24', bg: '#713f12' },
   e: { label: 'Explicit', color: '#f87171', bg: '#7f1d1d' }
 };
 
-export default function ImageCard({ post, imageType = 'preview', onClick }: ImageCardProps) {
+const gelbooruRatingConfig = {
+  s: { label: 'General', color: '#4ade80', bg: '#166534' },
+  sensitive: { label: 'Sensitive', color: '#60a5fa', bg: '#1e3a8a' },
+  q: { label: 'Questionable', color: '#fbbf24', bg: '#713f12' },
+  e: { label: 'Explicit', color: '#f87171', bg: '#7f1d1d' }
+};
+
+export default function ImageCard({ post, site, imageType = 'preview', onClick }: ImageCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  const ratingConfig = site === 'gelbooru.com' ? gelbooruRatingConfig : moebooruRatingConfig;
   const rating = ratingConfig[post.rating as keyof typeof ratingConfig] || ratingConfig.s;
   const imageUrl = imageType === 'sample' ? post.sample_url : post.preview_url;
   
