@@ -12,12 +12,12 @@ interface TagCache {
 }
 
 const TAG_COLORS: Record<number, string> = {
-  0: '#f472b6', // General - pink
-  1: '#fbbf24', // Artist - amber
-  3: '#a78bfa', // Copyright - violet
-  4: '#34d399', // Character - emerald
-  5: '#60a5fa', // Circle - blue
-  6: '#f87171', // Faults - red
+  0: '#9f7aea', // General - muted purple
+  1: '#f6ad55', // Artist - muted orange
+  3: '#b794f4', // Copyright - soft lavender
+  4: '#68d391', // Character - muted green
+  5: '#63b3ed', // Circle - muted sky blue
+  6: '#fc8181', // Faults - muted red
 };
 
 class TagCacheManager {
