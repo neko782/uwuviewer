@@ -289,6 +289,7 @@ export default function Home() {
           onPageChange={handlePageChange}
           onImageTypeChange={handleImageTypeChange}
           onApiKeyChange={handleApiKeyChange}
+          onDownloadTags={(s) => { setConsent(s, 'accepted'); startTagPrefetch(s); }}
           currentSite={site}
           currentPage={page}
           currentImageType={imageType}

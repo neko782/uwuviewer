@@ -19,6 +19,7 @@ interface SearchBarProps {
   onPageChange: (page: number) => void;
   onImageTypeChange: (imageType: 'preview' | 'sample') => void;
   onApiKeyChange: (apiKey: string) => void;
+  onDownloadTags: (site: Site) => void;
   currentSite: Site;
   currentPage: number;
   currentImageType: 'preview' | 'sample';
@@ -34,6 +35,7 @@ export default function SearchBar({
   onPageChange,
   onImageTypeChange,
   onApiKeyChange,
+  onDownloadTags,
   currentSite,
   currentPage,
   currentImageType,
@@ -59,6 +61,7 @@ export default function SearchBar({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [showDownloadOption, setShowDownloadOption] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSiteDropdownRef = useRef<HTMLDivElement>(null);
@@ -89,6 +92,17 @@ export default function SearchBar({
   useEffect(() => {
     setApiKeyInput(currentApiKey);
   }, [currentApiKey]);
+
+  // Show manual download option when user previously declined the popup
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setShowDownloadOption(false);
+      return;
+    }
+    const supported = currentSite === 'yande.re' || currentSite === 'konachan.com' || currentSite === 'rule34.xxx';
+    const consent = localStorage.getItem(`tag_prefetch_consent_${currentSite}`);
+    setShowDownloadOption(supported && consent === 'declined');
+  }, [currentSite]);
 
   const fetchSuggestions = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
@@ -420,6 +434,22 @@ export default function SearchBar({
                     onClick={() => setShowApiKeyModal(true)}
                   >
                     {currentApiKey ? 'API Key Set ✓' : 'Set API Key'}
+                  </button>
+                </div>
+              )}
+
+              {showDownloadOption && (
+                <div className="filter-section">
+                  <label className="filter-label">Tag Cache</label>
+                  <button
+                    type="button"
+                    className="api-key-button"
+                    onClick={() => {
+                      onDownloadTags(currentSite);
+                      setShowFilters(false);
+                    }}
+                  >
+                    Download tag cache
                   </button>
                 </div>
               )}
