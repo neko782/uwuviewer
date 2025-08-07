@@ -155,8 +155,8 @@ export default function SearchBar({
       return;
     }
     
-    // Set debounce based on site (instant for rule34 cache, delay elsewhere)
-    const delay = currentSite === 'rule34.xxx' ? 0 : 1000;
+    // Set debounce based on site (debounce only for Gelbooru)
+    const delay = currentSite === 'gelbooru.com' ? 1000 : 0;
     if (delay === 0) {
       fetchSuggestions(tag);
     } else {
