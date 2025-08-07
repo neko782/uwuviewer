@@ -46,7 +46,7 @@ export default function SearchBar({
     { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico', defaultRating: 'rating:safe' },
     { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico', defaultRating: 'rating:safe' },
     { value: 'gelbooru.com', label: 'Gelbooru', icon: '/gelbooru.ico', needsApiKey: true, defaultRating: 'rating:general' },
-    { value: 'rule34.xxx', label: 'Rule34', icon: '/globe.svg', defaultRating: '' }
+    { value: 'rule34.xxx', label: 'Rule34', icon: '/rule34.ico', defaultRating: '' }
   ];
 
   const currentSiteData = sites.find(s => s.value === currentSite) || sites[0];
