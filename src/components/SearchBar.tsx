@@ -119,9 +119,9 @@ export default function SearchBar({
     // Find the start of the current tag (after the last space before cursor, or start of string)
     let tagStart = input.lastIndexOf(' ', cursorPos - 1) + 1;
     
-    // Find the end of the current tag (next space after cursor, or end of string)
-    let tagEnd = input.indexOf(' ', cursorPos);
-    if (tagEnd === -1) tagEnd = input.length;
+    // For autocompletion, we only want to complete up to the cursor position
+    // not the entire tag that might extend beyond the cursor
+    let tagEnd = cursorPos;
     
     const currentTag = input.substring(tagStart, tagEnd);
     return { tag: currentTag, start: tagStart, end: tagEnd };
@@ -148,16 +148,20 @@ export default function SearchBar({
   }, [fetchSuggestions, getTagAtCursor]);
 
   const applySuggestion = useCallback((suggestion: TagSuggestion) => {
-    const { start, end } = getTagAtCursor(searchInput, cursorPosition);
-    const newValue = searchInput.substring(0, start) + suggestion.name + searchInput.substring(end);
+    const { start } = getTagAtCursor(searchInput, cursorPosition);
+    // Insert the suggestion at the cursor position, replacing only what was typed
+    // and add a space after the suggestion
+    const beforeCursor = searchInput.substring(0, start);
+    const afterCursor = searchInput.substring(cursorPosition);
+    const newValue = beforeCursor + suggestion.name + ' ' + afterCursor;
     setSearchInput(newValue);
     setShowSuggestions(false);
     setSuggestions([]);
     
-    // Focus back on input and set cursor position after the inserted tag
+    // Focus back on input and set cursor position after the inserted tag and space
     if (searchInputRef.current) {
       searchInputRef.current.focus();
-      const newCursorPos = start + suggestion.name.length;
+      const newCursorPos = start + suggestion.name.length + 1; // +1 for the space
       setTimeout(() => {
         searchInputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
       }, 0);
