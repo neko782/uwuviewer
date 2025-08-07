@@ -74,7 +74,7 @@ export default function SearchBar({
   }, [currentApiKey]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+    const handleClickOutside = (event: MouseEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setShowFilters(false);
       }
@@ -83,13 +83,8 @@ export default function SearchBar({
       }
     };
 
-    // Use 'click' instead of 'mousedown' to prevent closing before selection on mobile
-    document.addEventListener('click', handleClickOutside);
-    document.addEventListener('touchend', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-      document.removeEventListener('touchend', handleClickOutside);
-    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -105,10 +100,7 @@ export default function SearchBar({
           <button
             type="button"
             className="site-selector-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowSiteDropdown(!showSiteDropdown);
-            }}
+            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
           >
             <Image
               src={currentSiteData.icon}
@@ -130,8 +122,7 @@ export default function SearchBar({
                   key={site.value}
                   type="button"
                   className={`site-option ${currentSite === site.value ? 'active' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={() => {
                     onSiteChange(site.value);
                     setShowSiteDropdown(false);
                   }}
@@ -169,10 +160,7 @@ export default function SearchBar({
           <button
             type="button"
             className="filter-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowFilters(!showFilters);
-            }}
+            onClick={() => setShowFilters(!showFilters)}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M3 4h18M3 12h18M3 20h18" 
@@ -234,10 +222,7 @@ export default function SearchBar({
           <button
             type="button"
             className="site-selector-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowSiteDropdown(!showSiteDropdown);
-            }}
+            onClick={() => setShowSiteDropdown(!showSiteDropdown)}
           >
             <Image
               src={currentSiteData.icon}
@@ -259,8 +244,7 @@ export default function SearchBar({
                   key={site.value}
                   type="button"
                   className={`site-option ${currentSite === site.value ? 'active' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={() => {
                     onSiteChange(site.value);
                     setShowSiteDropdown(false);
                   }}
