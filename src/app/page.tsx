@@ -29,7 +29,7 @@ export default function Home() {
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey));
   const loadingRef = useRef(false);
 
-  const loadPosts = useCallback(async (pageNum: number, reset = false) => {
+  const loadPosts = useCallback(async (pageNum: number, reset = false, tags?: string) => {
     if (loadingRef.current && !reset) return;
     
     loadingRef.current = true;
@@ -40,13 +40,16 @@ export default function Home() {
       const newPosts = await apiRef.current.getPosts({
         page: pageNum,
         limit: 30,
-        tags: searchTags,
+        tags: tags || searchTags,
       });
 
       if (newPosts.length === 0) {
         setHasMore(false);
+        if (reset) {
+          setPosts([]);
+        }
       } else {
-        setPosts(reset ? newPosts : [...newPosts]);
+        setPosts(prevPosts => reset ? newPosts : [...prevPosts, ...newPosts]);
         setHasMore(newPosts.length === 30);
       }
       setIsInitialLoad(false);
@@ -65,7 +68,7 @@ export default function Home() {
     setPage(1);
     setHasMore(true);
     setIsInitialLoad(true);
-    loadPosts(1, true);
+    loadPosts(1, true, searchTags);
   }, [site, searchTags, apiKey, loadPosts]);
 
   const handlePageChange = useCallback((newPage: number) => {
