@@ -1,58 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { tagCacheManager } from '@/lib/tagCache';
+import { 
+  tagCacheManager,
+  YANDERE_TAG_COLORS,
+  KONACHAN_TAG_COLORS 
+} from '@/lib/tagCache';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q') || '';
     const site = searchParams.get('site') || 'yande.re';
-    const apiKey = searchParams.get('apiKey') || '';
 
-    if (!query) {
+    if (!query || query.length < 2) {
       return NextResponse.json({ suggestions: [] });
     }
 
-    // Only support yande.re and konachan.com for now (gelbooru doesn't have cached tags)
+    // Only support yande.re and konachan.com (gelbooru doesn't have cached tags)
     if (site !== 'yande.re' && site !== 'konachan.com') {
       return NextResponse.json({ suggestions: [] });
     }
 
-    // Ensure cache is loaded
-    await tagCacheManager.ensureCache(site);
+    // Search the cached tags
+    const tags = await tagCacheManager.searchCachedTags(site, query, 10);
     
-    // Get the cache directly (we need to expose a method for this)
-    // For now, we'll use the searchTags method from the API
-    const { ImageBoardAPI } = await import('@/lib/api');
-    const api = new ImageBoardAPI(site as any, apiKey);
-    const tags = await api.searchTags(query);
+    // Get the appropriate color map for the site
+    const colorMap = site === 'konachan.com' ? KONACHAN_TAG_COLORS : YANDERE_TAG_COLORS;
     
     // Format the response with colors and counts
-    const suggestions = tags.slice(0, 10).map((tag: any) => {
-      const colorMap = site === 'konachan.com' 
-        ? {
-            0: '#8B5A3C', // General
-            1: '#B8860B', // Artist
-            3: '#8B4789', // Copyright
-            4: '#2E7D32', // Character
-            5: '#C62828', // Style
-            6: '#1565C0', // Circle
-          }
-        : {
-            0: '#8B5A3C', // General
-            1: '#B8860B', // Artist
-            3: '#8B4789', // Copyright
-            4: '#2E7D32', // Character
-            5: '#1565C0', // Circle
-            6: '#C62828', // Faults
-          };
-      
-      return {
-        name: tag.name,
-        count: tag.count,
-        type: tag.type,
-        color: colorMap[tag.type as keyof typeof colorMap] || '#888888',
-      };
-    });
+    const suggestions = tags.map(tag => ({
+      name: tag.name,
+      count: tag.count,
+      type: tag.type,
+      color: colorMap[tag.type] || '#888888',
+    }));
 
     return NextResponse.json({ suggestions });
   } catch (error) {

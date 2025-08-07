@@ -218,6 +218,37 @@ class TagCacheManager {
     }
   }
 
+  async searchCachedTags(site: string, query: string, limit: number = 10): Promise<Tag[]> {
+    if (site !== 'yande.re' && site !== 'konachan.com') {
+      return [];
+    }
+    
+    await this.ensureCache(site);
+    
+    const cache = this.caches.get(site);
+    if (!cache) {
+      return [];
+    }
+    
+    const lowerQuery = query.toLowerCase();
+    const results: Tag[] = [];
+    
+    // Search through all cached tags
+    for (const [name, tag] of cache.tags) {
+      if (name.toLowerCase().startsWith(lowerQuery)) {
+        results.push(tag);
+        if (results.length >= limit * 2) { // Get more than needed for sorting
+          break;
+        }
+      }
+    }
+    
+    // Sort by count (descending) and return top results
+    return results
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
   async getTagsInfo(site: string, tagNames: string[], apiKey?: string): Promise<{
     tags: Record<string, { count: number; type: number; color: string } | null>;
     grouped: Record<string, string[]>;
@@ -360,3 +391,4 @@ export {
   KONACHAN_TAG_TYPE_NAMES,
   GELBOORU_TAG_TYPE_NAMES
 };
+export type { Tag };
