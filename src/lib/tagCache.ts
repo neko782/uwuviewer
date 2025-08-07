@@ -370,6 +370,29 @@ class TagCacheManager {
     }
   }
 
+  // Cache-only search that NEVER triggers network fetches
+  searchCachedTagsOnly(site: string, query: string, limit: number = 10): Tag[] {
+    const cache = this.caches.get(site);
+    if (!cache) return [];
+
+    const lowerQuery = query.toLowerCase();
+    const results: Tag[] = [];
+    for (const [name, tag] of cache.tags) {
+      if (name.toLowerCase().startsWith(lowerQuery)) {
+        results.push(tag);
+      }
+    }
+    return results
+      .sort((a, b) => {
+        const aExact = a.name.toLowerCase() === lowerQuery;
+        const bExact = b.name.toLowerCase() === lowerQuery;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        return b.count - a.count;
+      })
+      .slice(0, limit);
+  }
+
   async searchCachedTags(site: string, query: string, limit: number = 10): Promise<Tag[]> {
     if (site !== 'yande.re' && site !== 'konachan.com' && site !== 'rule34.xxx') {
       return [];
@@ -420,11 +443,13 @@ class TagCacheManager {
       return this.getRule34TagsInfo(tagNames);
     }
     
-    await this.ensureCache(site);
-    
+    // Do NOT trigger network fetches here; only use cache if present
     const cache = this.caches.get(site);
     if (!cache) {
-      throw new Error(`Tag cache not available for ${site}`);
+      // Return all unknowns when cache is not yet ready
+      const emptyTags: Record<string, { count: number; type: number; color: string } | null> = {};
+      const emptyGrouped: Record<string, string[]> = { Unknown: [...tagNames] };
+      return { tags: emptyTags, grouped: emptyGrouped };
     }
 
     const tags: Record<string, { count: number; type: number; color: string } | null> = {};
@@ -489,10 +514,9 @@ class TagCacheManager {
     }
     grouped['Unknown'] = [];
 
-    // If cache is not ready, trigger background refresh and return unknowns
+    // If cache is not ready, do NOT trigger downloads here; return unknowns only
     const cache = this.caches.get('rule34.xxx');
     if (!cache) {
-      this.refreshInBackground('rule34.xxx');
       for (const tagName of tagNames) {
         tags[tagName] = null;
         grouped['Unknown'].push(tagName);

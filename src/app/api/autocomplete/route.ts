@@ -133,8 +133,9 @@ async function fetchGelbooruSuggestions(query: string, apiKey?: string): Promise
   }
 }
 
-interface Rule34Item { label: string; value: string; type: string }
+interface Rule34Item { label: string; value: string; type: string } // unused: kept for reference
 
+/*
 async function fetchRule34Suggestions(query: string): Promise<Array<{ name: string; count: number; typeNum: number }>> {
   const cacheKey = query.toLowerCase();
   const cached = rule34AutocompleteCache.get(cacheKey);
@@ -196,9 +197,9 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
     return [];
   }
 }
-
-export async function GET(request: NextRequest) {
-  try {
+*/
+ 
+ export async function GET(request: NextRequest) {  try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q') || '';
     const site = searchParams.get('site') || 'yande.re';
@@ -223,38 +224,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ suggestions });
     }
 
-    // Handle Rule34: prefer local cache; fallback to ac.rule34 if cache not ready
+    // Handle Rule34: use local cache ONLY; do not fallback to ac.rule34 to avoid spamming
     if (site === 'rule34.xxx') {
-      if (tagCacheManager.isCacheFresh('rule34.xxx')) {
-        const tags = await tagCacheManager.searchCachedTags('rule34.xxx', query, 10);
-        const suggestions = tags.map(tag => ({
-          name: tag.name,
-          count: tag.count,
-          type: tag.type,
-          color: RULE34_TAG_COLORS[tag.type] || '#888888',
-        }));
-        return NextResponse.json({ suggestions });
-      } else {
-        // Kick off background refresh; non-blocking
-        tagCacheManager.refreshInBackground('rule34.xxx');
-        const items = await fetchRule34Suggestions(query);
-        const suggestions = items.map((it) => ({
-          name: it.name,
-          count: it.count,
-          type: it.typeNum,
-          color: RULE34_TAG_COLORS[it.typeNum] || '#888888',
-        }));
-        return NextResponse.json({ suggestions });
-      }
+      const tags = tagCacheManager.searchCachedTagsOnly('rule34.xxx', query, 10);
+      const suggestions = tags.map(tag => ({
+        name: tag.name,
+        count: tag.count,
+        type: tag.type,
+        color: RULE34_TAG_COLORS[tag.type] || '#888888',
+      }));
+      return NextResponse.json({ suggestions });
     }
 
-    // Handle yande.re and konachan.com with cached tags
+    // Handle yande.re and konachan.com with cached tags (cache-only; do not trigger downloads)
     if (site !== 'yande.re' && site !== 'konachan.com') {
       return NextResponse.json({ suggestions: [] });
     }
 
-    // Search the cached tags
-    const tags = await tagCacheManager.searchCachedTags(site, query, 10);
+    // Search the cached tags without initiating network fetches
+    const tags = tagCacheManager.searchCachedTagsOnly(site, query, 10);
     
     // Get the appropriate color map for the site
     const colorMap = site === 'konachan.com' ? KONACHAN_TAG_COLORS : YANDERE_TAG_COLORS;
