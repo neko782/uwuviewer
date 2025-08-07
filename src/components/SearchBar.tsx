@@ -64,6 +64,7 @@ export default function SearchBar({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const skipNextFetchRef = useRef(false);
 
   useEffect(() => {
     setSearchInput(searchTags);
@@ -133,12 +134,27 @@ export default function SearchBar({
     setSearchInput(value);
     setCursorPosition(cursorPos);
     
+    // Skip fetching if this change was from applying a suggestion
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      setShowSuggestions(false);
+      setSuggestions([]);
+      return;
+    }
+    
     // Get the tag at the cursor position
     const { tag } = getTagAtCursor(value, cursorPos);
     
     // Clear existing debounce timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
+    }
+    
+    // If the tag ends with a space or is empty, don't fetch suggestions
+    if (tag.trim() === '' || tag.endsWith(' ')) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
     }
     
     // Set new debounce timer
@@ -154,9 +170,18 @@ export default function SearchBar({
     const beforeCursor = searchInput.substring(0, start);
     const afterCursor = searchInput.substring(cursorPosition);
     const newValue = beforeCursor + suggestion.name + ' ' + afterCursor;
+    
+    // Set flag to skip the next fetch triggered by the input change
+    skipNextFetchRef.current = true;
+    
     setSearchInput(newValue);
     setShowSuggestions(false);
     setSuggestions([]);
+    
+    // Clear any pending debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     
     // Focus back on input and set cursor position after the inserted tag and space
     if (searchInputRef.current) {
@@ -164,6 +189,7 @@ export default function SearchBar({
       const newCursorPos = start + suggestion.name.length + 1; // +1 for the space
       setTimeout(() => {
         searchInputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+        setCursorPosition(newCursorPos);
       }, 0);
     }
   }, [searchInput, cursorPosition, getTagAtCursor]);
