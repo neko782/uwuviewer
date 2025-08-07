@@ -33,8 +33,8 @@ const KONACHAN_TAG_COLORS: Record<number, string> = {
   1: '#B8860B', // Artist - dark goldenrod (same as yandere)
   3: '#8B4789', // Copyright - dark orchid (same as yandere)
   4: '#2E7D32', // Character - forest green (same as yandere)
-  5: '#1565C0', // Style - medium blue (same as yandere circle)
-  6: '#C62828', // Circle - dark red (using faults color from yandere)
+  5: '#C62828', // Style - dark red
+  6: '#1565C0', // Circle - medium blue
 };
 
 const YANDERE_TAG_TYPE_NAMES: Record<number, string> = {
