@@ -21,12 +21,12 @@ interface SerializedCache {
 }
 
 const TAG_COLORS: Record<number, string> = {
-  0: '#9f7aea', // General - muted purple
-  1: '#f6ad55', // Artist - muted orange
-  3: '#b794f4', // Copyright - soft lavender
-  4: '#68d391', // Character - muted green
-  5: '#63b3ed', // Circle - muted sky blue
-  6: '#fc8181', // Faults - muted red
+  0: '', // General - peach
+  1: '', // Artist - yellow
+  3: '', // Copyright - pink
+  4: '', // Character - green
+  5: '', // Circle - blue
+  6: '', // Faults - red
 };
 
 class TagCacheManager {
