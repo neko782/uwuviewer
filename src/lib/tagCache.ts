@@ -233,19 +233,25 @@ class TagCacheManager {
     const lowerQuery = query.toLowerCase();
     const results: Tag[] = [];
     
-    // Search through all cached tags
+    // Search through ALL cached tags that match
     for (const [name, tag] of cache.tags) {
       if (name.toLowerCase().startsWith(lowerQuery)) {
         results.push(tag);
-        if (results.length >= limit * 2) { // Get more than needed for sorting
-          break;
-        }
       }
     }
     
-    // Sort by count (descending) and return top results
+    // Sort by relevance: exact match first, then by count
     return results
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => {
+        // Exact match gets highest priority
+        const aExact = a.name.toLowerCase() === lowerQuery;
+        const bExact = b.name.toLowerCase() === lowerQuery;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        // Then sort by count (descending)
+        return b.count - a.count;
+      })
       .slice(0, limit);
   }
 
