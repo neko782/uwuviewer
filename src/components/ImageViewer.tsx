@@ -35,8 +35,8 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
       
-      // Fetch tag info for yande.re and konachan.com
-      if ((site === 'yande.re' || site === 'konachan.com') && post.tags) {
+      // Fetch tag info for yande.re, konachan.com, and gelbooru.com
+      if ((site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com') && post.tags) {
         const tags = post.tags.split(' ').filter(tag => tag.length > 0);
         
         fetch('/api/tags', {
@@ -125,7 +125,7 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
 
           <div className="info-section">
             <h3>Tags</h3>
-            {(site === 'yande.re' || site === 'konachan.com') && Object.keys(tagData.grouped).length > 0 ? (
+            {(site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com') && Object.keys(tagData.grouped).length > 0 ? (
               <div className="tags-grouped">
                 {Object.entries(tagData.grouped).map(([groupName, tags]) => (
                   <div key={groupName} className="tag-group">
@@ -162,7 +162,7 @@ export default function ImageViewer({ post, site, onClose, onTagClick }: ImageVi
             ) : (
               <div className="tags-container">
                 {post.tags.split(' ').filter(tag => tag.length > 0).map((tag, index) => {
-                  const info = (site === 'yande.re' || site === 'konachan.com') ? tagData.tags[tag] : null;
+                  const info = (site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com') ? tagData.tags[tag] : null;
                   return (
                     <button
                       key={index}

@@ -37,6 +37,16 @@ const KONACHAN_TAG_COLORS: Record<number, string> = {
   6: '#1565C0', // Circle - medium blue
 };
 
+const GELBOORU_TAG_COLORS: Record<number, string> = {
+  0: '#8B5A3C', // General - brown/sienna (similar to moebooru)
+  1: '#B8860B', // Artist - dark goldenrod (similar to moebooru)
+  2: '#C62828', // Deprecated - dark red (like yandere faults)
+  3: '#8B4789', // Copyright - dark orchid (similar to moebooru)
+  4: '#2E7D32', // Character - forest green (similar to moebooru)
+  5: '#1565C0', // Metadata - medium blue (like konachan styles)
+  6: '#888888', // Tag - gray (unused but included for completeness)
+};
+
 const YANDERE_TAG_TYPE_NAMES: Record<number, string> = {
   0: 'General',
   1: 'Artist',
@@ -53,6 +63,16 @@ const KONACHAN_TAG_TYPE_NAMES: Record<number, string> = {
   4: 'Character',
   5: 'Style',
   6: 'Circle',
+};
+
+const GELBOORU_TAG_TYPE_NAMES: Record<number, string> = {
+  0: 'General',
+  1: 'Artist',
+  2: 'Deprecated',
+  3: 'Copyright',
+  4: 'Character',
+  5: 'Metadata',
+  6: 'Tag',
 };
 
 class TagCacheManager {
@@ -202,6 +222,11 @@ class TagCacheManager {
     tags: Record<string, { count: number; type: number; color: string } | null>;
     grouped: Record<string, string[]>;
   }> {
+    // Handle Gelbooru separately since it doesn't use cache
+    if (site === 'gelbooru.com') {
+      return this.getGelbooruTagsInfo(tagNames);
+    }
+    
     await this.ensureCache(site);
     
     const cache = this.caches.get(site);
@@ -249,7 +274,88 @@ class TagCacheManager {
 
     return { tags, grouped };
   }
+
+  private async getGelbooruTagsInfo(tagNames: string[]): Promise<{
+    tags: Record<string, { count: number; type: number; color: string } | null>;
+    grouped: Record<string, string[]>;
+  }> {
+    const tags: Record<string, { count: number; type: number; color: string } | null> = {};
+    const grouped: Record<string, string[]> = {};
+    
+    // Initialize groups
+    for (const typeNum in GELBOORU_TAG_TYPE_NAMES) {
+      grouped[GELBOORU_TAG_TYPE_NAMES[typeNum as unknown as number]] = [];
+    }
+    grouped['Unknown'] = [];
+    
+    try {
+      // Gelbooru API allows fetching multiple tags at once
+      const tagNamesParam = tagNames.join(' ');
+      const url = `https://gelbooru.com/index.php?page=dapi&s=tag&q=index&names=${encodeURIComponent(tagNamesParam)}&json=1`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch tags from Gelbooru: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const fetchedTags = data.tag || [];
+      
+      // Create a map of fetched tags for quick lookup
+      const fetchedTagMap = new Map<string, any>();
+      for (const tag of fetchedTags) {
+        fetchedTagMap.set(tag.name, tag);
+      }
+      
+      // Process each requested tag
+      for (const tagName of tagNames) {
+        const tag = fetchedTagMap.get(tagName);
+        if (tag) {
+          tags[tagName] = {
+            count: tag.count,
+            type: tag.type,
+            color: GELBOORU_TAG_COLORS[tag.type] || '#888888',
+          };
+          
+          // Add to grouped structure
+          const typeName = GELBOORU_TAG_TYPE_NAMES[tag.type] || 'Unknown';
+          grouped[typeName].push(tagName);
+        } else {
+          tags[tagName] = null;
+          grouped['Unknown'].push(tagName);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching Gelbooru tags:', error);
+      // If API fails, mark all tags as unknown
+      for (const tagName of tagNames) {
+        tags[tagName] = null;
+        grouped['Unknown'].push(tagName);
+      }
+    }
+    
+    // Remove empty groups
+    for (const key in grouped) {
+      if (grouped[key].length === 0) {
+        delete grouped[key];
+      }
+    }
+    
+    return { tags, grouped };
+  }
 }
 
 export const tagCacheManager = new TagCacheManager();
-export { YANDERE_TAG_COLORS, KONACHAN_TAG_COLORS, YANDERE_TAG_TYPE_NAMES, KONACHAN_TAG_TYPE_NAMES };
+export { 
+  YANDERE_TAG_COLORS, 
+  KONACHAN_TAG_COLORS, 
+  GELBOORU_TAG_COLORS,
+  YANDERE_TAG_TYPE_NAMES, 
+  KONACHAN_TAG_TYPE_NAMES,
+  GELBOORU_TAG_TYPE_NAMES
+};
