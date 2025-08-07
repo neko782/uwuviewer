@@ -162,24 +162,24 @@ export class ImageBoardAPI {
     };
   }
 
-  private convertGelbooruToUnified(post: GelbooruPost): UnifiedPost {
-    // Handle Gelbooru's different field formats and potential empty values
+  private convertGelbooruToUnified(post: any): UnifiedPost {
+    // Handle Gelbooru/Rule34 different field formats and potential empty values
     return {
-      id: post.id,
+      id: Number(post.id),
       tags: post.tags || '',
-      score: post.score || 0,
+      score: Number(post.score) || 0,
       rating: this.normalizeGelbooruRating(post.rating),
       file_url: post.file_url || '',
       preview_url: post.preview_url || '',
-      // Gelbooru's sample_url can be empty string, use file_url as fallback
+      // sample_url can be empty string, use file_url as fallback
       sample_url: (post.sample_url && post.sample_url !== '') ? post.sample_url : post.file_url,
-      width: post.width || 0,
-      height: post.height || 0,
-      preview_width: post.preview_width || 250,
-      preview_height: post.preview_height || 250,
+      width: Number(post.width) || 0,
+      height: Number(post.height) || 0,
+      preview_width: Number(post.preview_width) || 250,
+      preview_height: Number(post.preview_height) || 250,
       source: post.source || '',
-      // Gelbooru returns has_children as string "true"/"false"
-      has_children: post.has_children === 'true',
+      // has_children might be 'true'/'false', boolean, or missing
+      has_children: post.has_children === true || post.has_children === 'true',
     };
   }
 
@@ -297,8 +297,8 @@ export class ImageBoardAPI {
       queryParams.append('tags', tags);
     }
 
-    // Add API key if provided (format: &api_key=xxx&user_id=yyy)
-    const apiKeyParam = this.apiKey ? this.apiKey : '';
+    // Add API key if provided (format: &api_key=xxx&user_id=yyy). Rule34 never uses an API key.
+    const apiKeyParam = (this.site === 'gelbooru.com' && this.apiKey) ? this.apiKey : '';
     const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}${apiKeyParam}`)}`;
     const response = await this.fetchWithTimeout(url);
     
@@ -306,26 +306,29 @@ export class ImageBoardAPI {
       throw new Error(`Failed to fetch posts: ${response.statusText}`);
     }
 
-    let data: GelbooruResponse;
+    let data: any;
     try {
       data = await response.json();
     } catch (e) {
-      console.error('Failed to parse Gelbooru response:', e);
+      console.error('Failed to parse Gelbooru/Rule34 response:', e);
       return [];
     }
     
-    // Handle empty results or missing post field
-    if (!data || !data.post) {
-      return [];
+    // Support both shapes:
+    // - Gelbooru JSON: { post: [...] }
+    // - Rule34 JSON: [ ... ]
+    let postsRaw: any[] = [];
+    if (Array.isArray(data)) {
+      postsRaw = data;
+    } else if (data && data.post) {
+      postsRaw = Array.isArray(data.post) ? data.post : [data.post];
     }
 
-    // Gelbooru returns a single post as an object instead of array sometimes
-    const posts = Array.isArray(data.post) ? data.post : [data.post];
-    
-    // Filter out any null/undefined posts and convert
-    return posts
-      .filter(post => post != null)
-      .map(post => this.convertGelbooruToUnified(post));
+    if (!postsRaw || postsRaw.length === 0) return [];
+
+    return postsRaw
+      .filter((post) => post != null)
+      .map((post) => this.convertGelbooruToUnified(post));
   }
 
   async getPost(id: number): Promise<UnifiedPost> {
@@ -338,7 +341,7 @@ export class ImageBoardAPI {
         id: id.toString(),
       });
 
-      const apiKeyParam = this.apiKey ? this.apiKey : '';
+      const apiKeyParam = (this.site === 'gelbooru.com' && this.apiKey) ? this.apiKey : '';
       const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}${apiKeyParam}`)}`;
       const response = await this.fetchWithTimeout(url);
       
@@ -346,13 +349,21 @@ export class ImageBoardAPI {
         throw new Error(`Failed to fetch post: ${response.statusText}`);
       }
 
-      const data: GelbooruResponse = await response.json();
-      if (!data.post || data.post.length === 0) {
+      const data: any = await response.json();
+
+      // Support both shapes: array (Rule34) or object with post field (Gelbooru)
+      let postRaw: any | null = null;
+      if (Array.isArray(data)) {
+        postRaw = data[0] || null;
+      } else if (data && data.post) {
+        postRaw = Array.isArray(data.post) ? data.post[0] : data.post;
+      }
+
+      if (!postRaw) {
         throw new Error('Post not found');
       }
 
-      const post = Array.isArray(data.post) ? data.post[0] : data.post;
-      return this.convertGelbooruToUnified(post);
+      return this.convertGelbooruToUnified(postRaw);
     } else {
       const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/post/show/${id}.json`)}`;
       const response = await this.fetchWithTimeout(url);
