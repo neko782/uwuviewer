@@ -49,6 +49,7 @@ export default function SearchBar({
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileSiteDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSearchInput(searchTags);
@@ -78,7 +79,8 @@ export default function SearchBar({
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setShowFilters(false);
       }
-      if (siteDropdownRef.current && !siteDropdownRef.current.contains(event.target as Node)) {
+      if (siteDropdownRef.current && !siteDropdownRef.current.contains(event.target as Node) &&
+          mobileSiteDropdownRef.current && !mobileSiteDropdownRef.current.contains(event.target as Node)) {
         setShowSiteDropdown(false);
       }
     };
@@ -218,7 +220,7 @@ export default function SearchBar({
       </div>
 
       <div className="bottom-row mobile-only">
-        <div className="site-selector mobile-only">
+        <div className="site-selector mobile-only" ref={mobileSiteDropdownRef}>
           <button
             type="button"
             className="site-selector-button"
