@@ -128,7 +128,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
 
           <div className="info-section">
             <h3>Tags</h3>
-            {(site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com') && Object.keys(tagData.grouped).length > 0 ? (
+            {(site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx') && Object.keys(tagData.grouped).length > 0 ? (
               <div className="tags-grouped">
                 {Object.entries(tagData.grouped).map(([groupName, tags]) => (
                   <div key={groupName} className="tag-group">
@@ -165,7 +165,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
             ) : (
               <div className="tags-container">
                 {post.tags.split(' ').filter(tag => tag.length > 0).map((tag, index) => {
-                  const info = (site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com') ? tagData.tags[tag] : null;
+                  const info = (site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx') ? tagData.tags[tag] : null;
                   return (
                     <button
                       key={index}

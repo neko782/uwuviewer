@@ -5,6 +5,7 @@ import { ImageBoardAPI, UnifiedPost, Site } from '@/lib/api';
 import ImageCard from '@/components/ImageCard';
 import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
+import { toast } from 'sonner';
 
 export default function Home() {
   const [posts, setPosts] = useState<UnifiedPost[]>([]);
@@ -80,6 +81,70 @@ export default function Home() {
     }
   }, [page, loadPosts]);
 
+  // Start tags prefetch for supported sites with a toast
+  const startTagPrefetch = useCallback(async (targetSite: Site) => {
+    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx') return;
+
+    try {
+      // Check current status first
+      const statusRes = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
+      const status = await statusRes.json();
+
+      // If already fresh and has cache, no need to show long toast
+      if (status && status.fresh && status.hasCache && status.size > 0) {
+        toast.success(`${targetSite} tags are up to date (${status.size.toLocaleString()} tags)`);
+        return;
+      }
+
+      // Show an indeterminate progress toast
+      const id = toast.custom(() => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontWeight: 600 }}>Downloading tags for {targetSite}…</div>
+          <div style={{ width: 280, height: 6, background: 'var(--bg-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite' }} />
+          </div>
+          <style jsx>{`
+            @keyframes indeterminate {
+              0% { transform: translateX(-100%); }
+              50% { transform: translateX(50%); }
+              100% { transform: translateX(200%); }
+            }
+          `}</style>
+        </div>
+      ), { duration: Infinity });
+
+      // Kick off background refresh
+      await fetch('/api/tags/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site: targetSite })
+      });
+
+      // Poll for completion
+      const started = Date.now();
+      let done = false;
+      while (!done && Date.now() - started < 5 * 60_000) { // up to 5 minutes
+        await new Promise(r => setTimeout(r, 2000));
+        const res = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
+        const st = await res.json();
+        if (st && st.fresh && st.hasCache && st.size > 0 && !st.inProgress) {
+          done = true;
+          toast.dismiss(id);
+          toast.success(`Downloaded ${st.size.toLocaleString()} ${targetSite} tags`);
+          break;
+        }
+      }
+
+      if (!done) {
+        toast.dismiss(id);
+        toast.message(`Tag download for ${targetSite} is still running in background`);
+      }
+    } catch (e) {
+      console.error('Prefetch failed', e);
+      toast.error('Failed to prefetch tags');
+    }
+  }, []);
+
   const handleSearch = (tags: string) => {
     // Only reset if the tags have actually changed
     if (tags !== searchTags) {
@@ -91,7 +156,10 @@ export default function Home() {
     }
   };
 
-  const handleSiteChange = (newSite: Site) => {
+  const handleSiteChange = (newSite: Site) => { 
+    // start downloading tags for supported sites as soon as site is switched
+    startTagPrefetch(newSite);
+
     setSite(newSite);
     setPosts([]);
     setPage(1);

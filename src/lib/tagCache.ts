@@ -96,7 +96,30 @@ const GELBOORU_TAG_TYPE_NAMES: Record<number, string> = {
   6: 'Deprecated',
 };
 
-class TagCacheManager {
+class TagCacheManager { 
+  // Returns basic cache stats without triggering network fetches
+  async getCacheStats(site: string): Promise<{ hasCache: boolean; fresh: boolean; size: number; lastFetch: number | null; inProgress: boolean; }> {
+    // If a disk load is in progress, wait
+    const loadPromise = this.loadPromises.get(site);
+    if (loadPromise) {
+      await loadPromise;
+    } else if (!this.caches.has(site)) {
+      // Attempt to load from disk if not present in memory
+      const promise = this.loadCacheFromDisk(site);
+      this.loadPromises.set(site, promise);
+      await promise;
+      this.loadPromises.delete(site);
+    }
+
+    const cache = this.caches.get(site) || null;
+    const fresh = this.isCacheFresh(site);
+    const size = cache ? cache.tags.size : 0;
+    const lastFetch = cache ? cache.lastFetch : null;
+    const inProgress = this.fetchPromises.has(site);
+
+    return { hasCache: !!cache, fresh, size, lastFetch, inProgress };
+  }
+
   private caches: Map<string, TagCache | null> = new Map();
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours (default)
   private readonly R34_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days for Rule34
