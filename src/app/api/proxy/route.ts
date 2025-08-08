@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
 
   try {
     // Validate URL
+    let parsed: URL;
     try {
-      new URL(url);
+      parsed = new URL(url);
     } catch {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
     }
@@ -22,10 +23,18 @@ export async function GET(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 seconds timeout (less than maxDuration)
 
+    const isGelbooru = /(^|\.)gelbooru\.com$/i.test(parsed.hostname);
+
+    const headers: Record<string, string> = {
+      'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)',
+      'Accept': 'application/json',
+    };
+    if (isGelbooru) {
+      headers['fringeBenefits'] = 'yup';
+    }
+
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)','Accept': 'application/json',
-      },
+      headers,
       signal: controller.signal,
       // @ts-ignore - Next.js specific fetch options
       next: {

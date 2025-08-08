@@ -930,6 +930,14 @@ export default function SearchBar({
           border-color: var(--accent-dim);
           background: var(--bg-secondary);
         }
+        .limit-input::-webkit-inner-spin-button,
+        .limit-input::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .limit-input[type=number] {
+          -moz-appearance: textfield;
+        }
       `}</style>
 
       {showApiKeyModal && typeof document !== 'undefined' && 
