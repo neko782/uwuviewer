@@ -30,6 +30,21 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
       return lower.includes('.webm') || lower.includes('.mp4') || lower.includes('.m4v') || lower.includes('.mov') || lower.includes('.mkv') || lower.includes('.avi');
     }
   })();
+
+  // Determine if the post is a GIF by checking file_url extension
+  const isGif = (() => {
+    const url = post.file_url || '';
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      const pathname = u.pathname.toLowerCase();
+      return pathname.endsWith('.gif');
+    } catch {
+      const lower = url.toLowerCase();
+      return lower.includes('.gif');
+    }
+  })();
+
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -104,12 +119,14 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
         )}
       </div>
 
-      {isVideo && (
-        <div className="video-badge">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-            <path d="M7 6h7a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V8a2 2 0 012-2zm9 3l4-2v10l-4-2V9z" />
-          </svg>
-          <span>Video</span>
+      {(isVideo || isGif) && (
+        <div className="media-badge">
+          {isVideo && (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M7 6h7a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V8a2 2 0 012-2zm9 3l4-2v10l-4-2V9z" />
+            </svg>
+          )}
+          <span>{isVideo ? 'Video' : 'GIF'}</span>
         </div>
       )}
 
@@ -254,7 +271,7 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
-        .video-badge {
+        .media-badge {
           position: absolute;
           top: 8px;
           left: 8px;
