@@ -1,11 +1,22 @@
 "use client";
 import { Toaster } from 'sonner';
+import { useEffect, useState } from 'react';
 
 export default function ToasterClient() {
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   return (
     <Toaster
       richColors
-      position="top-right"
+      position={isMobile ? 'bottom-center' : 'top-right'}
       expand={true}
       closeButton
       toastOptions={{
