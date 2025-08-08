@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 function CollapsiblePrefetchToast({ targetSite }: { targetSite: Site }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', pointerEvents: collapsed ? 'none' as const : 'auto' }}>
       {!collapsed ? (
         <div style={{
           display: 'flex', flexDirection: 'column', gap: 10,
@@ -37,12 +37,17 @@ function CollapsiblePrefetchToast({ targetSite }: { targetSite: Site }) {
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 padding: '4px 6px',
-                borderRadius: 6
+                borderRadius: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
               aria-label="Hide"
-              title="Hide to small spinner"
+              title="Hide"
             >
-              Hide
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <rect x="2" y="5.5" width="8" height="1" rx="0.5" fill="currentColor" />
+              </svg>
             </button>
           </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
@@ -58,17 +63,17 @@ function CollapsiblePrefetchToast({ targetSite }: { targetSite: Site }) {
           `}</style>
         </div>
       ) : (
-        <button
-          disabled
-          aria-busy
+        <div
+          aria-hidden
           title={`Downloading tags for ${targetSite}…`}
           style={{
-            display: 'flex', alignItems: 'center', gap: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 8,
             background: 'var(--bg-secondary)',
             border: '1px solid var(--border-default)',
             borderRadius: 9999,
             padding: '6px 10px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            pointerEvents: 'none'
           }}
         >
           <span style={{
@@ -80,7 +85,7 @@ function CollapsiblePrefetchToast({ targetSite }: { targetSite: Site }) {
           <style jsx>{`
             @keyframes spin { to { transform: rotate(360deg); } }
           `}</style>
-        </button>
+        </div>
       )}
     </div>
   );
