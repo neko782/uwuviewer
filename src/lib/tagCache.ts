@@ -18,11 +18,8 @@ interface TagCache {
   aliases?: Map<string, string>;
 }
 
-interface SerializedCache {
-  tags: [string, Tag][];
+interface CacheMeta {
   lastFetch: number;
-  // Optional: persisted aliases for e621
-  aliases?: [string, string][];
 }
 
 const YANDERE_TAG_COLORS: Record<number, string> = {
@@ -188,31 +185,98 @@ class TagCacheManager {
     }
   }
 
-  private getCacheFilePath(site: string): string {
-    const sanitizedSite = site.replace(/[^a-z0-9]/gi, '_');
-    return path.join(this.DATA_DIR, `${sanitizedSite}_tag_cache.json`);
+  private getSanitizedSite(site: string): string {
+    return site.replace(/[^a-z0-9]/gi, '_');
+  }
+
+  private getTagsCsvPath(site: string): string {
+    const sanitized = this.getSanitizedSite(site);
+    return path.join(this.DATA_DIR, `${sanitized}_tags.csv`);
+  }
+
+  private getMetaJsonPath(site: string): string {
+    const sanitized = this.getSanitizedSite(site);
+    return path.join(this.DATA_DIR, `${sanitized}_tag_meta.json`);
+  }
+
+  private getAliasesCsvPath(site: string): string {
+    const sanitized = this.getSanitizedSite(site);
+    return path.join(this.DATA_DIR, `${sanitized}_aliases.csv`);
   }
 
   private async loadCacheFromDisk(site: string): Promise<void> {
     try {
-      const cacheFile = this.getCacheFilePath(site);
-      const data = await fs.readFile(cacheFile, 'utf-8');
-      const serialized: SerializedCache = JSON.parse(data);
-      
+      const metaPath = this.getMetaJsonPath(site);
+      const metaText = await fs.readFile(metaPath, 'utf-8');
+      const meta: CacheMeta = JSON.parse(metaText);
+
       const now = Date.now();
       const duration = this.getCacheDuration(site);
-      if (now - serialized.lastFetch < duration) {
-        this.caches.set(site, {
-          tags: new Map(serialized.tags),
-          lastFetch: serialized.lastFetch,
-          aliases: serialized.aliases ? new Map(serialized.aliases) : undefined,
-        });
-        console.debug(`Loaded ${serialized.tags.length} tags from disk cache for ${site} (age: ${Math.round((now - serialized.lastFetch) / 1000 / 60)} minutes)`);
-      } else {
-        // Mark as checked to avoid repeated disk reads/logs; a network refresh will handle updates
+      if (!meta || typeof meta.lastFetch !== 'number' || (now - meta.lastFetch) >= duration) {
         this.caches.set(site, null);
         console.debug(`Disk cache expired for ${site}, will fetch fresh data`);
+        return;
       }
+
+      const tagsPath = this.getTagsCsvPath(site);
+      const tagsText = await fs.readFile(tagsPath, 'utf-8');
+      const tagMap = new Map<string, Tag>();
+      const lines = tagsText.split(/\r?\n/);
+      if (lines.length > 0) {
+        const header = (lines[0] || '').trim().toLowerCase();
+        if (!/id,\s*name,\s*count,\s*type,\s*ambiguous/.test(header)) {
+          console.warn('Unexpected tags CSV header for', site, ':', header);
+        }
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          if (!line) continue;
+          const parts = line.split(',');
+          if (parts.length < 5) continue;
+          const id = parseInt(parts[0], 10) || 0;
+          const name = parts[1];
+          const count = parseInt(parts[2], 10) || 0;
+          const type = parseInt(parts[3], 10) || 0;
+          const ambiguous = String(parts[4]).trim() === 'true';
+          if (!name || count <= 0) continue;
+          tagMap.set(name, { id, name, count, type, ambiguous });
+        }
+      }
+
+      let aliases: Map<string, string> | undefined = undefined;
+      if (site === 'e621.net') {
+        try {
+          const aliasPath = this.getAliasesCsvPath(site);
+          const aliasText = await fs.readFile(aliasPath, 'utf-8');
+          const aliasLines = aliasText.split(/\r?\n/);
+          if (aliasLines.length > 0) {
+            const headerA = (aliasLines[0] || '').trim().toLowerCase();
+            if (!/antecedent,\s*consequent/.test(headerA)) {
+              console.warn('Unexpected aliases CSV header for', site, ':', headerA);
+            }
+            const map = new Map<string, string>();
+            for (let i = 1; i < aliasLines.length; i++) {
+              const line = aliasLines[i];
+              if (!line) continue;
+              const parts = line.split(',');
+              if (parts.length < 2) continue;
+              const antecedent = (parts[0] || '').trim();
+              const consequent = (parts[1] || '').trim();
+              if (!antecedent || !consequent) continue;
+              map.set(antecedent, consequent);
+            }
+            if (map.size > 0) aliases = map;
+          }
+        } catch {
+          // Missing aliases file is acceptable
+        }
+      }
+
+      this.caches.set(site, {
+        tags: tagMap,
+        lastFetch: meta.lastFetch,
+        aliases,
+      });
+      console.debug(`Loaded ${tagMap.size} tags from CSV cache for ${site} (age: ${Math.round((now - meta.lastFetch) / 1000 / 60)} minutes)`);
     } catch {
       // Mark as checked to avoid repeated disk reads/logs
       this.caches.set(site, null);
@@ -223,17 +287,39 @@ class TagCacheManager {
   private async saveCacheToDisk(site: string): Promise<void> {
     const cache = this.caches.get(site);
     if (!cache) return;
-    
+
     try {
-      const serialized: SerializedCache = {
-        tags: Array.from(cache.tags.entries()),
-        lastFetch: cache.lastFetch,
-        aliases: cache.aliases ? Array.from(cache.aliases.entries()) : undefined,
-      };
-      
-      const cacheFile = this.getCacheFilePath(site);
-      await fs.writeFile(cacheFile, JSON.stringify(serialized));
-      console.log(`Saved ${cache.tags.size} tags to disk cache for ${site} at ${cacheFile}`);
+      // Write tags CSV
+      const tagsCsvPath = this.getTagsCsvPath(site);
+      const header = 'id,name,count,type,ambiguous\n';
+      const lines: string[] = [];
+      for (const [name, tag] of cache.tags) {
+        // name should not contain commas in our datasets; write as-is
+        lines.push(`${tag.id},${name},${tag.count},${tag.type},${tag.ambiguous ? 'true' : 'false'}`);
+      }
+      await fs.writeFile(tagsCsvPath, header + lines.join('\n'));
+
+      // For e621, write aliases CSV separately if present
+      if (site === 'e621.net') {
+        const aliasPath = this.getAliasesCsvPath(site);
+        if (cache.aliases && cache.aliases.size > 0) {
+          const aliasLines: string[] = ['antecedent,consequent'];
+          for (const [antecedent, consequent] of cache.aliases) {
+            aliasLines.push(`${antecedent},${consequent}`);
+          }
+          await fs.writeFile(aliasPath, aliasLines.join('\n'));
+        } else {
+          // If no aliases, ensure old file does not mislead; best-effort remove
+          try { await fs.unlink(aliasPath); } catch {}
+        }
+      }
+
+      // Write metadata JSON (shared lastFetch)
+      const metaPath = this.getMetaJsonPath(site);
+      const meta: CacheMeta = { lastFetch: cache.lastFetch };
+      await fs.writeFile(metaPath, JSON.stringify(meta));
+
+      console.log(`Saved ${cache.tags.size} tags to CSV cache for ${site}`);
     } catch (error) {
       console.error(`Failed to save cache to disk for ${site}:`, error);
     }
