@@ -35,6 +35,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function GET(request: NextRequest) {
+  // Return credential presence flags without exposing secrets
+  const gel = !!request.cookies.get('gelbooru_api');
+  const login = !!request.cookies.get('e621_login');
+  const key = !!request.cookies.get('e621_api_key');
+  return NextResponse.json({ gelbooru: gel, e621: login && key });
+}
+
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
   res.cookies.delete('gelbooru_api');

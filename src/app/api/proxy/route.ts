@@ -87,9 +87,18 @@ export async function GET(request: NextRequest) {
       headers['fringeBenefits'] = 'yup';
       const g = request.cookies.get('gelbooru_api')?.value || '';
       if (g) {
-        // Append only if not already present
-        if (!parsed.search.includes('api_key=') && !parsed.search.includes('user_id=')) {
-          parsed.search += (parsed.search ? '' : '?') + (g.startsWith('&') ? g.slice(1) : g);
+        // Append only if not already present, using URLSearchParams for safety
+        const params = new URLSearchParams((g.startsWith('&') ? g.slice(1) : g));
+        const keys = Array.from(params.keys());
+        let mutated = false;
+        for (const k of keys) {
+          if (!parsed.searchParams.has(k)) {
+            parsed.searchParams.set(k, params.get(k) || '');
+            mutated = true;
+          }
+        }
+        if (mutated) {
+          parsed.search = '?' + parsed.searchParams.toString();
         }
       }
     }

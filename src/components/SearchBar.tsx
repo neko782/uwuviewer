@@ -67,6 +67,8 @@ export default function SearchBar({
   const [e621LoginInput, setE621LoginInput] = useState(currentE621Login);
   const [e621ApiKeyInput, setE621ApiKeyInput] = useState(currentE621ApiKey);
   const [showE621Modal, setShowE621Modal] = useState(false);
+  const [hasGelbooruCreds, setHasGelbooruCreds] = useState(false);
+  const [hasE621Creds, setHasE621Creds] = useState(false);
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -105,6 +107,18 @@ export default function SearchBar({
     setE621LoginInput(currentE621Login);
     setE621ApiKeyInput(currentE621ApiKey);
   }, [currentE621Login, currentE621ApiKey]);
+
+  // Reflect httpOnly cookie presence via server endpoint
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/creds');
+        const data = await res.json();
+        setHasGelbooruCreds(!!data.gelbooru);
+        setHasE621Creds(!!data.e621);
+      } catch {}
+    })();
+  }, []);
 
   // Show manual download option when user previously declined the popup
   useEffect(() => {
@@ -462,7 +476,7 @@ export default function SearchBar({
                         className="api-key-button"
                         onClick={() => setShowApiKeyModal(true)}
                       >
-                        {currentApiKey ? 'API Key Set ✓' : 'Set API Key'}
+                        {hasGelbooruCreds ? 'API Key Set ✓' : 'Set API Key'}
                       </button>
                     </div>
                   )}
@@ -475,7 +489,7 @@ export default function SearchBar({
                         className="api-key-button"
                         onClick={() => setShowE621Modal(true)}
                       >
-                        {currentE621Login && currentE621ApiKey ? 'Credentials Set ✓' : 'Set Credentials'}
+                        {hasE621Creds ? 'Credentials Set ✓' : 'Set Credentials'}
                       </button>
                     </div>
                   )}
@@ -984,6 +998,9 @@ export default function SearchBar({
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ gelbooruApi: apiKeyInput }),
                         });
+                        const res = await fetch('/api/creds');
+                        const data = await res.json();
+                        setHasGelbooruCreds(!!data.gelbooru);
                       } catch {}
                       onApiKeyChange('');
                       setApiKeyInput('');
@@ -1036,6 +1053,9 @@ export default function SearchBar({
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ e621Login: e621LoginInput, e621ApiKey: e621ApiKeyInput }),
                         });
+                        const res = await fetch('/api/creds');
+                        const data = await res.json();
+                        setHasE621Creds(!!data.e621);
                       } catch {}
                       onE621AuthChange('', '');
                       setE621LoginInput('');
