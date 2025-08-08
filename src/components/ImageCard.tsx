@@ -32,6 +32,7 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
   const rating = ratingConfig[post.rating as keyof typeof ratingConfig] || ratingConfig.s;
   // Use selected image type normally; do not force sample for Rule34
   const imageUrl = imageType === 'sample' ? post.sample_url : post.preview_url;
+  const hasImage = !!imageUrl;
   
   // Calculate aspect ratio from the dimensions corresponding to the displayed image
   const ratioWidth = imageType === 'sample' ? post.width : post.preview_width;
@@ -46,7 +47,13 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
       onClick={onClick}
     >
       <div className="image-container" style={{ paddingBottom: `${aspectRatio}%` }}>
-        {!imageLoaded && !imageError && (
+        {!hasImage && (
+          <div className="image-error">
+            <span>no image avalaible</span>
+          </div>
+        )}
+
+        {hasImage && !imageLoaded && !imageError && (
           <div className="image-placeholder">
             <div className="loading-spinner">
               <svg className="spinner-icon" viewBox="0 0 24 24" fill="none">
@@ -75,7 +82,7 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
           </div>
         )}
         
-        {!imageError && (
+        {hasImage && !imageError && (
           <img
             src={proxyImageUrl(imageUrl)}
             alt={`Post ${post.id}`}
@@ -86,7 +93,7 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
           />
         )}
 
-        {imageError && (
+        {hasImage && imageError && (
           <div className="image-error">
             <span>Failed to load</span>
           </div>

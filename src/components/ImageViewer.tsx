@@ -71,6 +71,9 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
     }
   };
 
+  const displayUrl = post.sample_url || post.file_url;
+  const hasImage = !!displayUrl;
+
   return (
     <div className="viewer-overlay" onClick={onClose}>
       <div className="viewer-container" onClick={(e) => e.stopPropagation()}>
@@ -81,18 +84,26 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
         </button>
 
         <div className="viewer-content">
-          {!imageLoaded && (
+          {!hasImage && (
+            <div className="viewer-loading" style={{ color: 'var(--text-secondary)' }}>
+              no image avalaible
+            </div>
+          )}
+
+          {hasImage && !imageLoaded && (
             <div className="viewer-loading">
               <div className="spinner" />
             </div>
           )}
           
-          <img
-            src={proxyImageUrl(post.sample_url || post.file_url)}
-            alt={`Post ${post.id}`}
-            className={`viewer-image ${imageLoaded ? 'loaded' : ''}`}
-            onLoad={() => setImageLoaded(true)}
-          />
+          {hasImage && (
+            <img
+              src={proxyImageUrl(displayUrl)}
+              alt={`Post ${post.id}`}
+              className={`viewer-image ${imageLoaded ? 'loaded' : ''}`}
+              onLoad={() => setImageLoaded(true)}
+            />
+          )}
         </div>
 
         <div className="viewer-info">

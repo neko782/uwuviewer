@@ -973,7 +973,7 @@ export default function SearchBar({
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <h3>Gelbooru API Key</h3>
               <p className="modal-description">
-                Enter your Gelbooru API credentials. Format: &api_key=xxx&user_id=yyy
+                Enter your Gelbooru API credentials (required to access the API). Use the format: &api_key=xxx&user_id=yyy
               </p>
               <input
                 type="text"
@@ -1011,7 +1011,7 @@ export default function SearchBar({
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <h3>e621 Credentials</h3>
               <p className="modal-description">
-                Enter your e621 username and API key. These will be sent as login and api_key query parameters.
+                Provide your e621 username and API key (required to view posts with young characters). These will be sent as login and api_key query parameters.
               </p>
               <input
                 type="text"
