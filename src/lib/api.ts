@@ -397,6 +397,9 @@ export class ImageBoardAPI {
     const response = await this.fetchWithTimeout(url);
     
     if (!response.ok) {
+      if (response.status === 401 && this.site === 'gelbooru.com') {
+        throw new Error('Unauthorized (401) from Gelbooru — maybe you forgot to set your API key');
+      }
       throw new Error(`Failed to fetch posts: ${response.statusText}`);
     }
 
