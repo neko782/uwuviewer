@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Site } from '@/lib/api';
 import Image from 'next/image';
+import { SITE_CONFIG, DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch } from '@/lib/constants';
 import Pagination from './Pagination';
 
 interface TagSuggestion {
@@ -55,16 +56,10 @@ export default function SearchBar({
   loading,
   searchTags = ''
 }: SearchBarProps) {
-  const sites: { value: Site; label: string; icon: string; needsApiKey?: boolean; defaultRating: string }[] = [
-    { value: 'yande.re', label: 'Yande.re', icon: '/yandere.ico', defaultRating: 'rating:safe' },
-    { value: 'konachan.com', label: 'Konachan', icon: '/konachan.ico', defaultRating: 'rating:safe' },
-    { value: 'gelbooru.com', label: 'Gelbooru', icon: '/gelbooru.ico', needsApiKey: true, defaultRating: 'rating:general' },
-    { value: 'e621.net', label: 'e621', icon: '/e621.ico', defaultRating: 'rating:safe' },
-    { value: 'rule34.xxx', label: 'Rule34', icon: '/rule34.ico', defaultRating: '' }
-  ];
+  const sites = SITE_CONFIG;
 
   const currentSiteData = sites.find(s => s.value === currentSite) || sites[0];
-  const [searchInput, setSearchInput] = useState(searchTags || currentSiteData.defaultRating);
+  const [searchInput, setSearchInput] = useState(searchTags || DEFAULT_RATING_BY_SITE[currentSite] || '');
   const [showFilters, setShowFilters] = useState(false);
   const [showSiteDropdown, setShowSiteDropdown] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
@@ -97,10 +92,8 @@ export default function SearchBar({
                          trimmedInput === '';
     
     if (isOnlyRating) {
-      const newSiteData = sites.find(s => s.value === currentSite);
-      if (newSiteData) {
-        setSearchInput(newSiteData.defaultRating);
-      }
+      const newDefault = DEFAULT_RATING_BY_SITE[currentSite] ?? '';
+      setSearchInput(newDefault);
     }
   }, [currentSite]); // Only run when currentSite changes, not on every searchInput change
 
@@ -119,7 +112,7 @@ export default function SearchBar({
       setShowDownloadOption(false);
       return;
     }
-    const supported = currentSite === 'yande.re' || currentSite === 'konachan.com' || currentSite === 'rule34.xxx' || currentSite === 'e621.net';
+    const supported = isSupportedForTagPrefetch(currentSite);
     const consent = localStorage.getItem(`tag_prefetch_consent_${currentSite}`);
     setShowDownloadOption(supported && consent === 'declined');
   }, [currentSite]);

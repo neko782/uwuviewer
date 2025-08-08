@@ -2,6 +2,7 @@
 
 import { UnifiedPost, Site } from '@/lib/api';
 import { proxyImageUrl } from '@/lib/imageProxy';
+import { getRatingLabel } from '@/lib/constants';
 import { useEffect, useState } from 'react';
 
 interface ImageViewerProps {
@@ -138,16 +139,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
               <span className="info-value">{post.width} × {post.height}</span>
               
               <span className="info-label">Rating</span>
-              <span className="info-value">{
-                site === 'gelbooru.com' ? (
-                  post.rating === 's' ? 'General' :
-                  post.rating === 'sensitive' ? 'Sensitive' :
-                  post.rating === 'q' ? 'Questionable' : 'Explicit'
-                ) : (
-                  post.rating === 's' ? 'Safe' :
-                  post.rating === 'q' ? 'Questionable' : 'Explicit'
-                )
-              }</span>
+              <span className="info-value">{getRatingLabel(site, post.rating)}</span>
               
               <span className="info-label">Score</span>
               <span className="info-value">{post.score}</span>

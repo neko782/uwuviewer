@@ -7,10 +7,11 @@ import ImageCard from '@/components/ImageCard';
 import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
 import { toast } from 'sonner';
+import { DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch } from '@/lib/constants';
 
 // Collapsible spinner used while preparing tags. Implemented as a proper
 // React component (so hooks are safe) and rendered via toast.custom.
-function CollapsiblePrefetchToast({ targetSite, onCollapse }: { targetSite: Site; onCollapse: () => void }) {
+function CollapsiblePrefetchToast({ targetSite, onCollapse, onCancel }: { targetSite: Site; onCollapse: () => void; onCancel: () => void }) {
   return (
     <div style={{ position: 'relative' }}>
       <div style={{
@@ -27,26 +28,43 @@ function CollapsiblePrefetchToast({ targetSite, onCollapse }: { targetSite: Site
             <div style={{ width: 8, height: 8, borderRadius: 9999, background: 'var(--accent)' }} />
             <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Preparing tags</div>
           </div>
-          <button
-            onClick={onCollapse}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '4px 6px',
-              borderRadius: 6,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            aria-label="Hide"
-            title="Hide"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-              <rect x="2" y="5.5" width="8" height="1" rx="0.5" fill="currentColor" />
-            </svg>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={onCancel}
+              style={{
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: 6,
+              }}
+              aria-label="Cancel"
+              title="Cancel"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onCollapse}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '4px 6px',
+                borderRadius: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              aria-label="Hide"
+              title="Hide"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <rect x="2" y="5.5" width="8" height="1" rx="0.5" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
         <div style={{ width: '100%', height: 8, background: 'var(--bg-tertiary)', borderRadius: 9999, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
@@ -197,6 +215,7 @@ export default function Home() {
   // Start tags prefetch for supported sites with a toast
   const prefetchingSitesRef = useRef<Set<Site>>(new Set());
   const toastIdsRef = useRef<Map<Site, string | number>>(new Map());
+  const cancelledPrefetchSitesRef = useRef<Set<Site>>(new Set());
   const [minimizedPrefetchSites, setMinimizedPrefetchSites] = useState<Set<Site>>(new Set());
 
   // Helper: small, clickable toast that dismisses on click
@@ -216,7 +235,7 @@ export default function Home() {
   }, []);
 
   const startTagPrefetch = useCallback(async (targetSite: Site) => {
-    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx' && targetSite !== 'e621.net') return;
+    if (!isSupportedForTagPrefetch(targetSite)) return;
 
     // prevent parallel duplicate prefetches and duplicate toasts per site
     if (prefetchingSitesRef.current.has(targetSite)) return;
@@ -247,6 +266,14 @@ export default function Home() {
               });
               toast.dismiss(tid);
             }}
+            onCancel={() => {
+              cancelledPrefetchSitesRef.current.add(targetSite);
+              toast.dismiss(tid);
+              const id2 = toastIdsRef.current.get(targetSite);
+              if (id2 !== undefined) toast.dismiss(id2);
+              toastIdsRef.current.delete(targetSite);
+              quickToast('message', `Canceled tag download for ${targetSite}`);
+            }}
           />
         ), { duration: Infinity });
         toastIdsRef.current.set(targetSite, id);
@@ -261,14 +288,13 @@ export default function Home() {
         });
       }
 
-      // Poll for completion (no time limit; minimized chip persists)
+      // Poll for completion with backoff and cancellation
       let done = false;
-      while (!done) {
-        await new Promise(r => setTimeout(r, 2000));
-        const res = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
-        const st = await res.json();
-        if (st && st.fresh && st.hasCache && st.size > 0 && !st.inProgress) {
-          done = true;
+      const maxAttempts = 10;
+      let delayMs = 2000;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        // Cancel path
+        if (cancelledPrefetchSitesRef.current.has(targetSite)) {
           if (id !== undefined) toast.dismiss(id);
           toastIdsRef.current.delete(targetSite);
           setMinimizedPrefetchSites(prev => {
@@ -277,8 +303,43 @@ export default function Home() {
             next.delete(targetSite);
             return next;
           });
-          break; // Disappear silently when finished
+          cancelledPrefetchSitesRef.current.delete(targetSite);
+          done = true;
+          break;
         }
+        await new Promise(r => setTimeout(r, delayMs));
+        try {
+          const res = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
+          const st = await res.json();
+          if (st && st.fresh && st.hasCache && st.size > 0 && !st.inProgress) {
+            done = true;
+            if (id !== undefined) toast.dismiss(id);
+            toastIdsRef.current.delete(targetSite);
+            setMinimizedPrefetchSites(prev => {
+              if (!prev.size) return prev;
+              const next = new Set(prev);
+              next.delete(targetSite);
+              return next;
+            });
+            break; // Disappear silently when finished
+          }
+        } catch (e) {
+          // ignore and continue backoff
+        }
+        // Exponential backoff up to 30s
+        delayMs = Math.min(delayMs * 2, 30000);
+      }
+      if (!done) {
+        // Timed out
+        if (id !== undefined) toast.dismiss(id);
+        toastIdsRef.current.delete(targetSite);
+        setMinimizedPrefetchSites(prev => {
+          if (!prev.size) return prev;
+          const next = new Set(prev);
+          next.delete(targetSite);
+          return next;
+        });
+        quickToast('error', `Tag download for ${targetSite} is taking too long. Try again later.`);
       }
     } catch (e) {
       console.error('Prefetch failed', e);
@@ -315,7 +376,7 @@ export default function Home() {
   };
 
   const maybePromptOrAutoPrefetch = useCallback((targetSite: Site) => {
-    if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx' && targetSite !== 'e621.net') return;
+    if (!isSupportedForTagPrefetch(targetSite)) return;
     const c = getConsent(targetSite);
     if (c === 'accepted') {
       startTagPrefetch(targetSite);
@@ -355,7 +416,7 @@ export default function Home() {
                          currentTags === '';
     
     if (isOnlyRating) {
-      const defaultRating = newSite === 'gelbooru.com' ? 'rating:general' : newSite === 'rule34.xxx' ? '' : newSite === 'e621.net' ? 'rating:safe' : 'rating:safe';
+      const defaultRating = DEFAULT_RATING_BY_SITE[newSite] ?? '';
       setSearchTags(defaultRating);
     }
   };
