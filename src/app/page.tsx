@@ -8,7 +8,7 @@ import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
 import { toast } from 'sonner';
 import { DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch, getTagDownloadSizeLabel } from '@/lib/constants';
-import { useRouter, usePathname } from 'next/navigation';
+// We avoid Next's router for URL updates to prevent client navigations
 
 // Collapsible spinner used while preparing tags. Implemented as a proper
 // React component (so hooks are safe) and rendered via toast.custom.
@@ -142,10 +142,18 @@ export default function Home() {
   const postsAbortRef = useRef<AbortController | null>(null);
   const postsRequestIdRef = useRef(0);
 
-  // Router and path helpers for URL state sync
-  const router = useRouter();
-  const pathname = usePathname();
+  // URL helpers for state sync (no Next navigation)
   const pendingNavRef = useRef<null | { type: 'search'; tags: string }>(null);
+  const prevPathRef = useRef<string>('');
+  const getPathname = () => (typeof window !== 'undefined' ? window.location.pathname : '/');
+  const setUrl = useCallback((path: string, mode: 'push' | 'replace' = 'push') => {
+    if (typeof window === 'undefined') return;
+    if (getPathname() === path) return;
+    try {
+      if (mode === 'replace') window.history.replaceState({}, '', path);
+      else window.history.pushState({}, '', path);
+    } catch {}
+  }, []);
 
   const isValidSite = useCallback((s: string): s is Site => {
     return Object.prototype.hasOwnProperty.call(DEFAULT_RATING_BY_SITE, s);
@@ -169,9 +177,9 @@ export default function Home() {
     return `/${s}`;
   }, [defaultTagsFor]);
 
-  // Parse the current pathname and update state accordingly
+  // Parse the current pathname once on mount (direct visit) and hydrate state
   useEffect(() => {
-    const raw = pathname || '/';
+    const raw = getPathname();
     const segs = raw.split('/').filter(Boolean).map((x) => {
       try { return decodeURIComponent(x); } catch { return x; }
     });
@@ -181,11 +189,10 @@ export default function Home() {
     if (!isValidSite(s0)) return; // unknown; ignore
     const newSite = s0 as Site;
 
-    // posts route: do not change search/page; only ensure site matches, and do nothing else
+    // posts route: do not change search/page; only ensure site matches
     if (segs[1] === 'posts') {
       if (site !== newSite) {
         setSite(newSite);
-        // if switching site due to URL, also ensure default tags if current tags are rating-only for previous site
         const def = defaultTagsFor(newSite);
         if (searchTags.trim() === '' || searchTags === defaultTagsFor(site)) {
           setSearchTags(def);
@@ -203,24 +210,21 @@ export default function Home() {
     } else if (typeof segs[1] === 'string' && /^\d+$/.test(segs[1])) {
       newPage = Math.max(1, parseInt(segs[1], 10));
     } else {
-      // just /:site
       newTags = defaultTagsFor(newSite);
       newPage = 1;
     }
 
-    // Apply changes if different
     if (site !== newSite) setSite(newSite);
     if (searchTags !== newTags) setSearchTags(newTags);
     if (page !== newPage) {
       setPage(newPage);
       setPosts([]);
-      // loadPosts will fire from [site, searchTags] effect, but if those didn't change, trigger load now
       if (site === newSite && searchTags === newTags) {
         loadPosts(newPage, true, newTags);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, []);
 
   // Build explicit columns and distribute posts row-first to preserve masonry look but change order
   const [columnCount, setColumnCount] = useState<number>(5);
@@ -365,9 +369,9 @@ export default function Home() {
       setPosts([]);
       loadPosts(newPage, true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      try { router.push(buildPath(site, searchTags, newPage)); } catch {}
+      try { setUrl(buildPath(site, searchTags, newPage), 'push'); } catch {}
     }
-  }, [page, loadPosts, router, buildPath, site, searchTags]);
+  }, [page, loadPosts, buildPath, site, searchTags, setUrl]);
 
   // Start tags prefetch for supported sites with a toast
   const prefetchingSitesRef = useRef<Set<Site>>(new Set());
@@ -614,11 +618,11 @@ export default function Home() {
       setHasMore(true);
       setError(null);
       if (navigate) {
-        try { router.push(buildPath(site, tags, 1)); } catch {}
+        try { setUrl(buildPath(site, tags, 1), 'push'); } catch {}
       }
     } else {
       if (navigate) {
-        try { router.push(buildPath(site, tags, 1)); } catch {}
+        try { setUrl(buildPath(site, tags, 1), 'push'); } catch {}
       }
     }
   };
@@ -643,7 +647,7 @@ export default function Home() {
     maybePromptOrAutoPrefetch(newSite);
 
     // Navigate to the new URL
-    try { router.push(buildPath(newSite, newTags, 1)); } catch {}
+    try { setUrl(buildPath(newSite, newTags, 1), 'push'); } catch {}
   };
 
 
@@ -792,7 +796,7 @@ export default function Home() {
                   post={post}
                   site={site}
                   imageType={imageType}
-                  onClick={() => { setSelectedPost(post); try { router.push(`/${site}/posts/${post.id}`); } catch {} }}
+                  onClick={() => { if (typeof window !== 'undefined') { prevPathRef.current = getPathname(); try { setUrl(`/${site}/posts/${post.id}`, 'push'); } catch {} } setSelectedPost(post); }}
                 />
               ))}
             </div>
@@ -827,10 +831,8 @@ export default function Home() {
            if (pendingNavRef.current?.type === 'search') {
              const nav = pendingNavRef.current;
              pendingNavRef.current = null;
-             try { router.push(buildPath(site, nav.tags, 1)); } catch {}
-           } else {
-             try { router.back(); } catch {}
-           }
+              try { setUrl(buildPath(site, nav.tags, 1), 'replace'); } catch {}           } else {
+              try { setUrl(prevPathRef.current || buildPath(site, searchTags, page), 'replace'); } catch {}           }
            setSelectedPost(null);
          }}
          onTagClick={(tag) => {
