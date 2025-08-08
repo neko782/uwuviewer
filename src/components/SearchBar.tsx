@@ -83,9 +83,9 @@ export default function SearchBar({
   const siteDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSiteDropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isApplyingSuggestionRef = useRef(false);
+   const suggestionsRef = useRef<HTMLDivElement>(null);
+   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const isApplyingSuggestionRef = useRef(false);
 
   useEffect(() => {
     setSearchInput(searchTags);

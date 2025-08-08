@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Site } from '@/lib/api';
 import { SITE_CONFIG, isSupportedForTagPrefetch, getTagDownloadSizeLabel } from '@/lib/constants';
@@ -18,6 +18,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [open, setOpen] = useState(false); // dropdown open state
   const [savingSites, setSavingSites] = useState<Set<Site>>(new Set());
   const [blocklist, setBlocklist] = useState('');
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load blocklist from server on mount
   useEffect(() => {
@@ -58,6 +59,16 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     })();
     return () => { cancelled = true; };
   }, [supportedSites]);
+
+  // Cleanup pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const cycle = (v: ConsentValue): ConsentValue => {
     if (v === 'accepted') return 'declined';
@@ -161,19 +172,25 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           <input
             type="text"
             value={blocklist}
-            onChange={async (e) => {
+            onChange={(e) => {
               const v = e.target.value;
               setBlocklist(v);
-              try {
-                await fetch('/api/settings', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ blocklist: v })
-                });
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('blocklist-changed', { detail: { blocklist: v } }));
-                }
-              } catch {}
+              if (saveTimerRef.current) {
+                clearTimeout(saveTimerRef.current);
+                saveTimerRef.current = null;
+              }
+              saveTimerRef.current = setTimeout(async () => {
+                try {
+                  await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blocklist: v })
+                  });
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('blocklist-changed', { detail: { blocklist: v } }));
+                  }
+                } catch {}
+              }, 2000);
             }}
             placeholder="space-separated tags to always exclude"
             className="blocklist-input"

@@ -244,6 +244,12 @@ export default function Home() {
     };
   }, []);
 
+  // On first app start (default provider selected), ask to download tags for the default site
+  useEffect(() => {
+    maybePromptOrAutoPrefetch(site);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage !== page && !loadingRef.current) {
