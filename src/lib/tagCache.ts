@@ -207,12 +207,16 @@ class TagCacheManager {
           lastFetch: serialized.lastFetch,
           aliases: serialized.aliases ? new Map(serialized.aliases) : undefined,
         });
-        console.log(`Loaded ${serialized.tags.length} tags from disk cache for ${site} (age: ${Math.round((now - serialized.lastFetch) / 1000 / 60)} minutes)`);
+        console.debug(`Loaded ${serialized.tags.length} tags from disk cache for ${site} (age: ${Math.round((now - serialized.lastFetch) / 1000 / 60)} minutes)`);
       } else {
-        console.log(`Disk cache expired for ${site}, will fetch fresh data`);
+        // Mark as checked to avoid repeated disk reads/logs; a network refresh will handle updates
+        this.caches.set(site, null);
+        console.debug(`Disk cache expired for ${site}, will fetch fresh data`);
       }
     } catch (error) {
-      console.log(`No valid disk cache found for ${site}, will fetch fresh data`);
+      // Mark as checked to avoid repeated disk reads/logs
+      this.caches.set(site, null);
+      console.debug(`No valid disk cache found for ${site}, will fetch fresh data`);
     }
   }
 
