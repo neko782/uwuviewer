@@ -74,15 +74,6 @@ export default function FiltersPanel({ currentImageType, onImageTypeChange, curr
         </div>
       )}
 
-      {showDownloadOption && (
-        <div className="filter-section">
-          <label className="filter-label">Tag Cache</label>
-          <button type="button" className="api-key-button" onClick={onDownloadTags}>
-            Download tag cache
-          </button>
-        </div>
-      )}
-
       <div className="filter-section">
         <label className="filter-label">Settings</label>
         <button type="button" className="api-key-button" onClick={onOpenSettings}>
