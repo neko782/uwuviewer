@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGlobalCreds } from '@/lib/globalCreds';
+import { Agent } from 'undici';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Create a custom undici Agent with 60s timeouts (consistent with image proxy)
+const agent = new Agent({
+  connectTimeout: 60_000,
+  bodyTimeout: 60_000,
+  headersTimeout: 60_000,
+});
 
 // Basic in-memory rate limit per IP
 const WINDOW_MS = 60_000; // 1 minute
@@ -116,12 +124,14 @@ export async function GET(request: NextRequest) {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55_000);
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
     const response = await fetch(parsed.toString(), {
       headers,
       signal: controller.signal,
       next: { revalidate: 300 },
+      // @ts-ignore - undici dispatcher option
+      dispatcher: agent,
     });
 
     clearTimeout(timeoutId);
