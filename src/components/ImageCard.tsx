@@ -25,6 +25,19 @@ const gelbooruRatingConfig = {
 };
 
 export default function ImageCard({ post, site, imageType = 'preview', onClick }: ImageCardProps) {
+  // Determine if the post is a video by checking file_url extension
+  const isVideo = (() => {
+    const url = post.file_url || '';
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      const pathname = u.pathname.toLowerCase();
+      return pathname.endsWith('.webm') || pathname.endsWith('.mp4') || pathname.endsWith('.m4v') || pathname.endsWith('.mov') || pathname.endsWith('.mkv') || pathname.endsWith('.avi');
+    } catch {
+      const lower = url.toLowerCase();
+      return lower.includes('.webm') || lower.includes('.mp4') || lower.includes('.m4v') || lower.includes('.mov') || lower.includes('.mkv') || lower.includes('.avi');
+    }
+  })();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -99,6 +112,15 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
           </div>
         )}
       </div>
+
+      {isVideo && (
+        <div className="video-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M7 6h7a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V8a2 2 0 012-2zm9 3l4-2v10l-4-2V9z" />
+          </svg>
+          <span>Video</span>
+        </div>
+      )}
 
       <div className="rating-badge" style={{ 
         backgroundColor: rating.bg,
@@ -238,6 +260,25 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
           background: rgba(0, 0, 0, 0.7);
           color: var(--text-primary);
           z-index: 1;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-badge {
+          position: absolute;
+          top: 8px;
+          left: 8px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 3px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          background: rgba(0, 0, 0, 0.7);
+          color: #fff;
+          z-index: 2;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
       `}</style>

@@ -48,12 +48,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const contentType = response.headers.get('content-type');
+    let contentType = response.headers.get('content-type') || '';
+
+    // Infer content type from URL extension if missing
+    if (!contentType) {
+      const pathname = validatedUrl.pathname.toLowerCase();
+      if (pathname.endsWith('.webm')) contentType = 'video/webm';
+      else if (pathname.endsWith('.mp4') || pathname.endsWith('.m4v')) contentType = 'video/mp4';
+      else if (pathname.endsWith('.mov')) contentType = 'video/quicktime';
+      else if (pathname.endsWith('.png')) contentType = 'image/png';
+      else if (pathname.endsWith('.gif')) contentType = 'image/gif';
+      else if (pathname.endsWith('.webp')) contentType = 'image/webp';
+      else contentType = 'image/jpeg';
+    }
+
     const buffer = await response.arrayBuffer();
 
     return new NextResponse(buffer, {
       headers: {
-        'Content-Type': contentType || 'image/jpeg',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400',
       },
     });

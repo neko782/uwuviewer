@@ -71,7 +71,20 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
     }
   };
 
-  const displayUrl = post.sample_url || post.file_url;
+  const isVideo = (() => {
+    const url = post.file_url || '';
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      const pathname = u.pathname.toLowerCase();
+      return pathname.endsWith('.webm') || pathname.endsWith('.mp4') || pathname.endsWith('.m4v') || pathname.endsWith('.mov') || pathname.endsWith('.mkv') || pathname.endsWith('.avi');
+    } catch {
+      const lower = url.toLowerCase();
+      return lower.includes('.webm') || lower.includes('.mp4') || lower.includes('.m4v') || lower.includes('.mov') || lower.includes('.mkv') || lower.includes('.avi');
+    }
+  })();
+
+  const displayUrl = isVideo ? post.file_url : (post.sample_url || post.file_url);
   const hasImage = !!displayUrl;
 
   return (
@@ -97,12 +110,23 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
           )}
           
           {hasImage && (
-            <img
-              src={proxyImageUrl(displayUrl)}
-              alt={`Post ${post.id}`}
-              className={`viewer-image ${imageLoaded ? 'loaded' : ''}`}
-              onLoad={() => setImageLoaded(true)}
-            />
+            isVideo ? (
+              <video
+                src={proxyImageUrl(displayUrl)}
+                className={`viewer-media ${imageLoaded ? 'loaded' : ''}`}
+                controls
+                loop
+                playsInline
+                onLoadedData={() => setImageLoaded(true)}
+              />
+            ) : (
+              <img
+                src={proxyImageUrl(displayUrl)}
+                alt={`Post ${post.id}`}
+                className={`viewer-media ${imageLoaded ? 'loaded' : ''}`}
+                onLoad={() => setImageLoaded(true)}
+              />
+            )
           )}
         </div>
 
@@ -328,7 +352,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
           to { transform: rotate(360deg); }
         }
 
-        .viewer-image {
+        .viewer-media {
           max-width: 100%;
           max-height: 100%;
           width: auto;
@@ -337,9 +361,10 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
           opacity: 0;
           transition: opacity 0.3s ease;
           display: block;
+          background: black;
         }
 
-        .viewer-image.loaded {
+        .viewer-media.loaded {
           opacity: 1;
         }
 
