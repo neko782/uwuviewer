@@ -102,10 +102,14 @@ export class ImageBoardAPI {
   private site: Site;
   private apiType: 'moebooru' | 'gelbooru' | 'e621';
   private apiKey: string;
+  private e621Login?: string;
+  private e621ApiKey?: string;
 
-  constructor(site: Site = 'yande.re', apiKey: string = '') {
+  constructor(site: Site = 'yande.re', apiKey: string = '', e621Auth?: { login?: string; apiKey?: string }) {
     this.site = site;
     this.apiKey = apiKey;
+    this.e621Login = e621Auth?.login || '';
+    this.e621ApiKey = e621Auth?.apiKey || '';
     
     // Rule34 does not use an API key
     if (site === 'rule34.xxx') {
@@ -305,6 +309,12 @@ export class ImageBoardAPI {
       tags = tags ? `${tags} rating:${params.rating}` : `rating:${params.rating}`;
     }
     if (tags) queryParams.append('tags', tags);
+
+    // Append e621 auth if provided
+    if (this.e621Login && this.e621ApiKey) {
+      queryParams.append('login', this.e621Login);
+      queryParams.append('api_key', this.e621ApiKey);
+    }
 
     // We go through our proxy which sets an appropriate User-Agent for e621
     const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/posts.json?${queryParams}`)}`;

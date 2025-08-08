@@ -35,9 +35,21 @@ export default function Home() {
     }
     return 100;
   });
+  const [e621Login, setE621Login] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('e621_login') || '';
+    }
+    return '';
+  });
+  const [e621ApiKey, setE621ApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('e621_api_key') || '';
+    }
+    return '';
+  });
   const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
   
-  const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey));
+  const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey }));
   const loadingRef = useRef(false);
 
   // Build explicit columns and distribute posts row-first to preserve masonry look but change order
@@ -103,13 +115,13 @@ export default function Home() {
   }, [searchTags, limit]);
 
   useEffect(() => {
-    apiRef.current = new ImageBoardAPI(site, apiKey);
+    apiRef.current = new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey });
     setPosts([]);
     setPage(1);
     setHasMore(true);
     setIsInitialLoad(true);
     loadPosts(1, true, searchTags);
-  }, [site, searchTags, apiKey, loadPosts]);
+  }, [site, searchTags, apiKey, e621Login, e621ApiKey, loadPosts]);
 
   // On first app start (default provider selected), ask to download tags for the default site
   useEffect(() => {
@@ -310,6 +322,15 @@ export default function Home() {
     }
   };
 
+  const handleE621AuthChange = (login: string, key: string) => {
+    setE621Login(login);
+    setE621ApiKey(key);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('e621_login', login);
+      localStorage.setItem('e621_api_key', key);
+    }
+  };
+
   const handleRetry = () => {
     setError(null);
     setHasMore(true);
@@ -341,12 +362,15 @@ export default function Home() {
           onPageChange={handlePageChange}
           onImageTypeChange={handleImageTypeChange}
           onApiKeyChange={handleApiKeyChange}
+          onE621AuthChange={handleE621AuthChange}
           onDownloadTags={(s) => { setConsent(s, 'accepted'); startTagPrefetch(s); }}
           onLimitChange={handleLimitChange}
           currentSite={site}
           currentPage={page}
           currentImageType={imageType}
           currentApiKey={apiKey}
+          currentE621Login={e621Login}
+          currentE621ApiKey={e621ApiKey}
           currentLimit={limit}
           hasMore={hasMore}
           loading={loading}

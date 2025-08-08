@@ -19,12 +19,15 @@ interface SearchBarProps {
   onPageChange: (page: number) => void;
   onImageTypeChange: (imageType: 'preview' | 'sample') => void;
   onApiKeyChange: (apiKey: string) => void;
+  onE621AuthChange: (login: string, apiKey: string) => void;
   onDownloadTags: (site: Site) => void;
   onLimitChange: (limit: number) => void;
   currentSite: Site;
   currentPage: number;
   currentImageType: 'preview' | 'sample';
   currentApiKey: string;
+  currentE621Login: string;
+  currentE621ApiKey: string;
   currentLimit: number;
   hasMore: boolean;
   loading: boolean;
@@ -37,12 +40,15 @@ export default function SearchBar({
   onPageChange,
   onImageTypeChange,
   onApiKeyChange,
+  onE621AuthChange,
   onDownloadTags,
   onLimitChange,
   currentSite,
   currentPage,
   currentImageType,
   currentApiKey,
+  currentE621Login,
+  currentE621ApiKey,
   currentLimit,
   hasMore,
   loading,
@@ -62,6 +68,9 @@ export default function SearchBar({
   const [showSiteDropdown, setShowSiteDropdown] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [e621LoginInput, setE621LoginInput] = useState(currentE621Login);
+  const [e621ApiKeyInput, setE621ApiKeyInput] = useState(currentE621ApiKey);
+  const [showE621Modal, setShowE621Modal] = useState(false);
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -97,6 +106,11 @@ export default function SearchBar({
   useEffect(() => {
     setApiKeyInput(currentApiKey);
   }, [currentApiKey]);
+
+  useEffect(() => {
+    setE621LoginInput(currentE621Login);
+    setE621ApiKeyInput(currentE621ApiKey);
+  }, [currentE621Login, currentE621ApiKey]);
 
   // Show manual download option when user previously declined the popup
   useEffect(() => {
@@ -456,6 +470,19 @@ export default function SearchBar({
                         onClick={() => setShowApiKeyModal(true)}
                       >
                         {currentApiKey ? 'API Key Set ✓' : 'Set API Key'}
+                      </button>
+                    </div>
+                  )}
+
+                  {currentSite === 'e621.net' && (
+                    <div className="filter-section">
+                      <label className="filter-label">e621 Credentials</label>
+                      <button
+                        type="button"
+                        className="api-key-button"
+                        onClick={() => setShowE621Modal(true)}
+                      >
+                        {currentE621Login && currentE621ApiKey ? 'Credentials Set ✓' : 'Set Credentials'}
                       </button>
                     </div>
                   )}
@@ -967,6 +994,51 @@ export default function SearchBar({
                 </button>
                 <button
                   onClick={() => setShowApiKeyModal(false)}
+                  className="modal-button cancel"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
+
+      {showE621Modal && typeof document !== 'undefined' &&
+        ReactDOM.createPortal(
+          <div className="modal-overlay" onClick={() => setShowE621Modal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <h3>e621 Credentials</h3>
+              <p className="modal-description">
+                Enter your e621 username and API key. These will be sent as login and api_key query parameters.
+              </p>
+              <input
+                type="text"
+                value={e621LoginInput}
+                onChange={(e) => setE621LoginInput(e.target.value)}
+                placeholder="Username"
+                className="api-key-input"
+              />
+              <input
+                type="text"
+                value={e621ApiKeyInput}
+                onChange={(e) => setE621ApiKeyInput(e.target.value)}
+                placeholder="API Key"
+                className="api-key-input"
+              />
+              <div className="modal-buttons">
+                <button
+                  onClick={() => {
+                    onE621AuthChange(e621LoginInput, e621ApiKeyInput);
+                    setShowE621Modal(false);
+                  }}
+                  className="modal-button save"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setShowE621Modal(false)}
                   className="modal-button cancel"
                 >
                   Cancel
