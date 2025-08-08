@@ -109,6 +109,7 @@ export default function Home() {
   
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey }));
   const loadingRef = useRef(false);
+  const postsAbortRef = useRef<AbortController | null>(null);
 
   // Build explicit columns and distribute posts row-first to preserve masonry look but change order
   const [columnCount, setColumnCount] = useState<number>(5);
@@ -141,17 +142,27 @@ export default function Home() {
 
   const loadPosts = useCallback(async (pageNum: number, reset = false, tags?: string) => {
     if (loadingRef.current && !reset) return;
+
+    // Abort any in-flight posts request when a new one starts
+    if (postsAbortRef.current) {
+      try { postsAbortRef.current.abort(); } catch {}
+    }
+    const controller = new AbortController();
+    postsAbortRef.current = controller;
     
     loadingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      const newPosts = await apiRef.current.getPosts({
-        page: pageNum,
-        limit: limit,
-        tags: tags || searchTags,
-      });
+      const newPosts = await apiRef.current.getPosts(
+        {
+          page: pageNum,
+          limit: limit,
+          tags: tags || searchTags,
+        },
+        { signal: controller.signal }
+      );
 
       if (newPosts.length === 0) {
         setHasMore(false);
@@ -163,9 +174,12 @@ export default function Home() {
         setHasMore(newPosts.length === limit);
       }
       setIsInitialLoad(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load posts');
-      setHasMore(false);
+    } catch (err: any) {
+      // Ignore aborted requests
+      if (!(err && err.name === 'AbortError')) {
+        setError(err instanceof Error ? err.message : 'Failed to load posts');
+        setHasMore(false);
+      }
     } finally {
       setLoading(false);
       loadingRef.current = false;

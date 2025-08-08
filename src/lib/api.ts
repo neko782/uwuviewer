@@ -131,9 +131,22 @@ export class ImageBoardAPI {
     }
   }
 
-  private async fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  // Combines an external AbortSignal with an internal timeout-based signal
+  private async fetchWithTimeout(url: string, options: RequestInit = {}, externalSignal?: AbortSignal): Promise<Response> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      try { controller.abort(); } catch {}
+    }, this.timeout);
+
+    const onAbort = () => {
+      try { controller.abort(); } catch {}
+    };
+    if (externalSignal) {
+      if (externalSignal.aborted) onAbort();
+      else externalSignal.addEventListener('abort', onAbort, { once: true });
+    }
 
     try {
       const response = await fetch(url, {
@@ -141,11 +154,18 @@ export class ImageBoardAPI {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+      if (externalSignal) externalSignal.removeEventListener('abort', onAbort as any);
       return response;
-    } catch (error) {
+    } catch (error: any) {
       clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout - please try again');
+      if (externalSignal) externalSignal.removeEventListener('abort', onAbort as any);
+      if (error && (error.name === 'AbortError' || error.code === 'ABORT_ERR')) {
+        if (timedOut) {
+          throw new Error('Request timeout - please try again');
+        }
+        const e = new Error('Request aborted');
+        (e as any).name = 'AbortError';
+        throw e;
       }
       throw error;
     }
@@ -276,27 +296,33 @@ export class ImageBoardAPI {
     return ratingMap[rating] || rating;
   }
 
-  async getPosts(params: {
-    page?: number;
-    limit?: number;
-    tags?: string;
-    rating?: 's' | 'q' | 'e';
-  } = {}): Promise<UnifiedPost[]> {
+  async getPosts(
+    params: {
+      page?: number;
+      limit?: number;
+      tags?: string;
+      rating?: 's' | 'q' | 'e';
+    } = {},
+    opts?: { signal?: AbortSignal }
+  ): Promise<UnifiedPost[]> {
     if (this.apiType === 'gelbooru') {
-      return this.getGelbooruPosts(params);
+      return this.getGelbooruPosts(params, opts);
     } else if (this.apiType === 'e621') {
-      return this.getE621Posts(params);
+      return this.getE621Posts(params, opts);
     } else {
-      return this.getMoebooruPosts(params);
+      return this.getMoebooruPosts(params, opts);
     }
   }
 
-  private async getE621Posts(params: {
-    page?: number;
-    limit?: number;
-    tags?: string;
-    rating?: 's' | 'q' | 'e';
-  }): Promise<UnifiedPost[]> {
+  private async getE621Posts(
+    params: {
+      page?: number;
+      limit?: number;
+      tags?: string;
+      rating?: 's' | 'q' | 'e';
+    },
+    opts?: { signal?: AbortSignal }
+  ): Promise<UnifiedPost[]> {
     const limit = params.limit || 100;
     const page = params.page || 1;
 
@@ -315,7 +341,7 @@ export class ImageBoardAPI {
 
     // We go through our proxy which sets an appropriate User-Agent for e621
     const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/posts.json?${queryParams}`)}`;
-    const response = await this.fetchWithTimeout(url);
+    const response = await this.fetchWithTimeout(url, {}, opts?.signal);
     if (!response.ok) {
       if (response.status === 401 && this.site === 'gelbooru.com') {
         throw new Error('Unauthorized (401) from Gelbooru — maybe you forgot to set your API key');
@@ -327,12 +353,15 @@ export class ImageBoardAPI {
     return postsRaw.map((p) => this.convertE621ToUnified(p));
   }
 
-  private async getMoebooruPosts(params: {
-    page?: number;
-    limit?: number;
-    tags?: string;
-    rating?: 's' | 'q' | 'e';
-  }): Promise<UnifiedPost[]> {
+  private async getMoebooruPosts(
+    params: {
+      page?: number;
+      limit?: number;
+      tags?: string;
+      rating?: 's' | 'q' | 'e';
+    },
+    opts?: { signal?: AbortSignal }
+  ): Promise<UnifiedPost[]> {
     const queryParams = new URLSearchParams({
       page: (params.page || 1).toString(),
       limit: (params.limit || 100).toString(),
@@ -349,7 +378,7 @@ export class ImageBoardAPI {
     }
 
     const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/post.json?${queryParams}`)}`;
-    const response = await this.fetchWithTimeout(url);
+    const response = await this.fetchWithTimeout(url, {}, opts?.signal);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch posts: ${response.statusText}`);
@@ -359,12 +388,15 @@ export class ImageBoardAPI {
     return posts.map(post => this.convertMoebooruToUnified(post));
   }
 
-  private async getGelbooruPosts(params: {
-    page?: number;
-    limit?: number;
-    tags?: string;
-    rating?: 's' | 'q' | 'e';
-  }): Promise<UnifiedPost[]> {
+  private async getGelbooruPosts(
+    params: {
+      page?: number;
+      limit?: number;
+      tags?: string;
+      rating?: 's' | 'q' | 'e';
+    },
+    opts?: { signal?: AbortSignal }
+  ): Promise<UnifiedPost[]> {
     const page = params.page || 1;
     const limit = params.limit || 100;
     const pid = (page - 1); // Gelbooru uses pid (page id) starting from 0
@@ -390,7 +422,7 @@ export class ImageBoardAPI {
 
     // Add API key if provided (format: &api_key=xxx&user_id=yyy). Rule34 never uses an API key.
     const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}`)}`;
-    const response = await this.fetchWithTimeout(url);
+    const response = await this.fetchWithTimeout(url, {}, opts?.signal);
     
     if (!response.ok) {
       if (response.status === 401 && this.site === 'gelbooru.com') {
