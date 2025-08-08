@@ -217,6 +217,7 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
       // Format the response with colors and counts
       const suggestions = tags.map(tag => ({
         name: tag.name,
+        value: tag.name,
         count: tag.count,
         type: tag.type,
         color: GELBOORU_TAG_COLORS[tag.type] || '#888888',
@@ -232,6 +233,7 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
       const tags = tagCacheManager.searchCachedTagsOnly('rule34.xxx', query, 10);
       const suggestions = tags.map(tag => ({
         name: tag.name,
+        value: tag.name,
         count: tag.count,
         type: tag.type,
         color: RULE34_TAG_COLORS[tag.type] || '#888888',
@@ -252,14 +254,47 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
     
     // Get the appropriate color map for the site
     const colorMap = site === 'konachan.com' ? KONACHAN_TAG_COLORS : site === 'e621.net' ? E621_TAG_COLORS : YANDERE_TAG_COLORS;
-    
-    // Format the response with colors and counts
-    const suggestions = tags.map(tag => ({
+
+    // Base suggestions from direct tags
+    const baseSuggestions = tags.map(tag => ({
       name: tag.name,
+      value: tag.name,
       count: tag.count,
       type: tag.type,
       color: colorMap[tag.type] || '#888888',
     }));
+
+    // For e621, also include alias suggestions (antecedent → consequent)
+    let suggestions = baseSuggestions;
+    if (site === 'e621.net') {
+      const aliasPairs = tagCacheManager.searchE621AliasesOnly(query, 10);
+      const aliasSuggestions = aliasPairs.map(({ alias, target }) => ({
+        name: `${alias} → ${target.name}`,
+        value: target.name,
+        count: target.count,
+        type: target.type,
+        color: E621_TAG_COLORS[target.type] || '#888888',
+      }));
+      // Merge and sort: exact matches first (alias or tag), then by count
+      const lowerQuery = query.toLowerCase();
+      const merged = [...aliasSuggestions, ...baseSuggestions];
+      merged.sort((a, b) => {
+        const aExact = a.value.toLowerCase() === lowerQuery || a.name.toLowerCase() === lowerQuery;
+        const bExact = b.value.toLowerCase() === lowerQuery || b.name.toLowerCase() === lowerQuery;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        return b.count - a.count;
+      });
+      // Deduplicate by name to avoid duplicates
+      const seen = new Set<string>();
+      suggestions = [] as any[];
+      for (const s of merged) {
+        if (seen.has(s.name)) continue;
+        seen.add(s.name);
+        suggestions.push(s);
+        if (suggestions.length >= 10) break;
+      }
+    }
 
     return NextResponse.json({ suggestions });
   } catch (error) {

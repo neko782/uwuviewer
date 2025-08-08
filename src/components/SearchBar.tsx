@@ -7,7 +7,8 @@ import Image from 'next/image';
 import Pagination from './Pagination';
 
 interface TagSuggestion {
-  name: string;
+  name: string;     // display label (may include alias → canonical)
+  value?: string;   // text to insert (canonical tag)
   count: number;
   type: number;
   color: string;
@@ -214,8 +215,9 @@ export default function SearchBar({
     // and add a space after the suggestion
     const beforeCursor = searchInput.substring(0, start);
     const afterCursor = searchInput.substring(cursorPosition);
-    const newValue = beforeCursor + suggestion.name + ' ' + afterCursor;
-    const newCursorPos = start + suggestion.name.length + 1; // +1 for the space
+    const toInsert = suggestion.value || suggestion.name;
+    const newValue = beforeCursor + toInsert + ' ' + afterCursor;
+    const newCursorPos = start + toInsert.length + 1; // +1 for the space
     
     // Hide suggestions immediately
     setShowSuggestions(false);

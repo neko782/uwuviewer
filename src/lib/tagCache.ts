@@ -14,11 +14,15 @@ interface Tag {
 interface TagCache {
   tags: Map<string, Tag>;
   lastFetch: number;
+  // For e621: alias map from antecedent_name -> consequent_name (only active)
+  aliases?: Map<string, string>;
 }
 
 interface SerializedCache {
   tags: [string, Tag][];
   lastFetch: number;
+  // Optional: persisted aliases for e621
+  aliases?: [string, string][];
 }
 
 const YANDERE_TAG_COLORS: Record<number, string> = {
@@ -201,6 +205,7 @@ class TagCacheManager {
         this.caches.set(site, {
           tags: new Map(serialized.tags),
           lastFetch: serialized.lastFetch,
+          aliases: serialized.aliases ? new Map(serialized.aliases) : undefined,
         });
         console.log(`Loaded ${serialized.tags.length} tags from disk cache for ${site} (age: ${Math.round((now - serialized.lastFetch) / 1000 / 60)} minutes)`);
       } else {
@@ -219,6 +224,7 @@ class TagCacheManager {
       const serialized: SerializedCache = {
         tags: Array.from(cache.tags.entries()),
         lastFetch: cache.lastFetch,
+        aliases: cache.aliases ? Array.from(cache.aliases.entries()) : undefined,
       };
       
       const cacheFile = this.getCacheFilePath(site);
@@ -388,11 +394,62 @@ class TagCacheManager {
         if (!success) {
           throw new Error('Failed to download any e621 tags dump for today or yesterday');
         }
+        // Fetch aliases dump as well: tag_aliases-YYYY-MM-DD.csv.gz (UTC)
+        let aliasSuccess = false;
+        const aliasMap = new Map<string, string>();
+        for (const dateStr of tryDates) {
+          url = `https://e621.net/db_export/tag_aliases-${dateStr}.csv.gz`;
+          console.log(`Fetching ${site} tag aliases dump for ${dateStr}...`);
+          const res = await fetch(url, {
+            headers: {
+              'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)'
+            }
+          });
+          if (!res.ok) {
+            console.warn(`Failed to fetch ${url}: ${res.status}`);
+            continue;
+          }
+          const ab = await res.arrayBuffer();
+          const buf = Buffer.from(ab);
+          let csv: string;
+          try {
+            const decompressed = gunzipSync(buf);
+            csv = decompressed.toString('utf8');
+          } catch (e) {
+            console.error('Failed to gunzip e621 tag aliases dump:', e);
+            continue;
+          }
+          const lines = csv.split(/\r?\n/);
+          if (lines.length === 0) continue;
+          // Expect header: id,antecedent_name,consequent_name,created_at,status
+          const header = lines[0].trim();
+          if (!/id,\s*antecedent_name,\s*consequent_name,\s*created_at,\s*status/.test(header)) {
+            console.warn('Unexpected e621 tag_aliases header:', header);
+          }
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            const parts = line.split(',');
+            if (parts.length < 5) continue;
+            const antecedent = parts[1];
+            const consequent = parts[2];
+            const status = parts[4];
+            if (!antecedent || !consequent) continue;
+            if (status && status !== 'active') continue;
+            aliasMap.set(antecedent, consequent);
+          }
+          aliasSuccess = true;
+          break;
+        }
+        if (!aliasSuccess) {
+          console.warn('Failed to download e621 tag aliases dump for today or yesterday');
+        }
         this.caches.set(site, {
           tags: tagMap,
           lastFetch: Date.now(),
+          aliases: aliasMap.size > 0 ? aliasMap : undefined,
         });
-        console.log(`Fetched and cached ${tagMap.size} tags from ${site} dump`);
+        console.log(`Fetched and cached ${tagMap.size} tags and ${aliasMap.size} aliases from ${site} dump`);
         await this.saveCacheToDisk(site);
         return;
       } else if (site === 'rule34.xxx') {
@@ -498,6 +555,32 @@ class TagCacheManager {
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
         return b.count - a.count;
+      })
+      .slice(0, limit);
+  }
+
+  // For e621: search aliases only, returning pairs of (alias, target Tag)
+  searchE621AliasesOnly(query: string, limit: number = 10): Array<{ alias: string; target: Tag }>
+  {
+    const cache = this.caches.get('e621.net');
+    if (!cache || !cache.aliases) return [];
+    const lowerQuery = query.toLowerCase();
+    const out: Array<{ alias: string; target: Tag }> = [];
+    for (const [alias, consequent] of cache.aliases) {
+      if (!alias || !consequent) continue;
+      if (!alias.toLowerCase().startsWith(lowerQuery)) continue;
+      const target = cache.tags.get(consequent);
+      if (target) {
+        out.push({ alias, target });
+      }
+    }
+    return out
+      .sort((a, b) => {
+        const aExact = a.alias.toLowerCase() === lowerQuery;
+        const bExact = b.alias.toLowerCase() === lowerQuery;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        return b.target.count - a.target.count;
       })
       .slice(0, limit);
   }
