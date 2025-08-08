@@ -246,10 +246,14 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
       return NextResponse.json({ suggestions: [] });
     }
 
-    // Ensure disk cache is loaded into memory (no network)
-    await tagCacheManager.ensureCacheLoadedFromDisk(site);
+    // Ensure cache is available. For e621, ensure full cache (fetch if needed) to include aliases.
+    if (site === 'e621.net') {
+      await tagCacheManager.ensureCache(site);
+    } else {
+      await tagCacheManager.ensureCacheLoadedFromDisk(site);
+    }
 
-    // Search the cached tags without initiating network fetches
+    // Search the cached tags
     const tags = tagCacheManager.searchCachedTagsOnly(site, query, 10);
     
     // Get the appropriate color map for the site

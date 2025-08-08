@@ -431,9 +431,9 @@ class TagCacheManager {
             if (!line) continue;
             const parts = line.split(',');
             if (parts.length < 5) continue;
-            const antecedent = parts[1];
-            const consequent = parts[2];
-            const status = parts[4];
+            const antecedent = (parts[1] || '').trim();
+            const consequent = (parts[2] || '').trim();
+            const status = (parts[4] || '').trim();
             if (!antecedent || !consequent) continue;
             if (status && status !== 'active') continue;
             aliasMap.set(antecedent, consequent);
