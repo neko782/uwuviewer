@@ -293,7 +293,7 @@ export class ImageBoardAPI {
     tags?: string;
     rating?: 's' | 'q' | 'e';
   }): Promise<UnifiedPost[]> {
-    const limit = params.limit || 30;
+    const limit = params.limit || 100;
     const page = params.page || 1;
 
     const queryParams = new URLSearchParams({
@@ -325,7 +325,7 @@ export class ImageBoardAPI {
   }): Promise<UnifiedPost[]> {
     const queryParams = new URLSearchParams({
       page: (params.page || 1).toString(),
-      limit: (params.limit || 20).toString(),
+      limit: (params.limit || 100).toString(),
     });
 
     if (params.tags) {
@@ -356,7 +356,7 @@ export class ImageBoardAPI {
     rating?: 's' | 'q' | 'e';
   }): Promise<UnifiedPost[]> {
     const page = params.page || 1;
-    const limit = params.limit || 20;
+    const limit = params.limit || 100;
     const pid = (page - 1); // Gelbooru uses pid (page id) starting from 0
     
     const queryParams = new URLSearchParams({

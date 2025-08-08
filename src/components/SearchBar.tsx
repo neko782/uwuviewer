@@ -20,10 +20,12 @@ interface SearchBarProps {
   onImageTypeChange: (imageType: 'preview' | 'sample') => void;
   onApiKeyChange: (apiKey: string) => void;
   onDownloadTags: (site: Site) => void;
+  onLimitChange: (limit: number) => void;
   currentSite: Site;
   currentPage: number;
   currentImageType: 'preview' | 'sample';
   currentApiKey: string;
+  currentLimit: number;
   hasMore: boolean;
   loading: boolean;
   searchTags?: string;
@@ -36,10 +38,12 @@ export default function SearchBar({
   onImageTypeChange,
   onApiKeyChange,
   onDownloadTags,
+  onLimitChange,
   currentSite,
   currentPage,
   currentImageType,
   currentApiKey,
+  currentLimit,
   hasMore,
   loading,
   searchTags = ''
@@ -404,59 +408,76 @@ export default function SearchBar({
             </svg>
           </button>
 
-          {showFilters && (
-            <div className="filter-dropdown">
-              <div className="filter-section">
-                <label className="filter-label">Image Quality</label>
-                <div className="filter-options">
-                  <button
-                    type="button"
-                    className={`filter-option ${currentImageType === 'preview' ? 'active' : ''}`}
-                    onClick={() => onImageTypeChange('preview')}
-                  >
-                    Preview (Fast)
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-option ${currentImageType === 'sample' ? 'active' : ''}`}
-                    onClick={() => onImageTypeChange('sample')}
-                  >
-                    Sample (HQ)
-                  </button>
-                </div>
-              </div>
+              {showFilters && (
+                <div className="filter-dropdown">
+                  <div className="filter-section">
+                    <label className="filter-label">Image Quality</label>
+                    <div className="filter-options">
+                      <button
+                        type="button"
+                        className={`filter-option ${currentImageType === 'preview' ? 'active' : ''}`}
+                        onClick={() => onImageTypeChange('preview')}
+                      >
+                        Preview (Fast)
+                      </button>
+                      <button
+                        type="button"
+                        className={`filter-option ${currentImageType === 'sample' ? 'active' : ''}`}
+                        onClick={() => onImageTypeChange('sample')}
+                      >
+                        Sample (HQ)
+                      </button>
+                    </div>
+                  </div>
 
-              {currentSite === 'gelbooru.com' && (
-                <div className="filter-section">
-                  <label className="filter-label">API Key</label>
-                  <button
-                    type="button"
-                    className="api-key-button"
-                    onClick={() => setShowApiKeyModal(true)}
-                  >
-                    {currentApiKey ? 'API Key Set ✓' : 'Set API Key'}
-                  </button>
+                  <div className="filter-section">
+                    <label className="filter-label">Posts per page</label>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={currentLimit}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value || '0', 10);
+                        if (!Number.isNaN(v) && v > 0) {
+                          onLimitChange(v);
+                        }
+                      }}
+                      className="limit-input"
+                    />
+                  </div>
+
+                  {currentSite === 'gelbooru.com' && (
+                    <div className="filter-section">
+                      <label className="filter-label">API Key</label>
+                      <button
+                        type="button"
+                        className="api-key-button"
+                        onClick={() => setShowApiKeyModal(true)}
+                      >
+                        {currentApiKey ? 'API Key Set ✓' : 'Set API Key'}
+                      </button>
+                    </div>
+                  )}
+
+                  {showDownloadOption && (
+                    <div className="filter-section">
+                      <label className="filter-label">Tag Cache</label>
+                      <button
+                        type="button"
+                        className="api-key-button"
+                        onClick={() => {
+                          onDownloadTags(currentSite);
+                          setShowFilters(false);
+                          setShowDownloadOption(false);
+                        }}
+                      >
+                        Download tag cache
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
-
-              {showDownloadOption && (
-                <div className="filter-section">
-                  <label className="filter-label">Tag Cache</label>
-                  <button
-                    type="button"
-                    className="api-key-button"
-                    onClick={() => {
-                      onDownloadTags(currentSite);
-                      setShowFilters(false);
-                      setShowDownloadOption(false);
-                    }}
-                  >
-                    Download tag cache
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </form>
       
@@ -893,6 +914,21 @@ export default function SearchBar({
         .api-key-button:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
+        }
+
+        .limit-input {
+          width: 100%;
+          padding: 10px 12px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          color: var(--text-primary);
+          font-size: 13px;
+        }
+        .limit-input:focus {
+          outline: none;
+          border-color: var(--accent-dim);
+          background: var(--bg-secondary);
         }
       `}</style>
 

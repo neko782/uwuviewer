@@ -27,6 +27,14 @@ export default function Home() {
     }
     return '';
   });
+  const [limit, setLimit] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('posts_per_page');
+      const n = stored ? parseInt(stored, 10) : 100;
+      return Number.isFinite(n) && n > 0 ? n : 100;
+    }
+    return 100;
+  });
   const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
   
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey));
@@ -71,7 +79,7 @@ export default function Home() {
     try {
       const newPosts = await apiRef.current.getPosts({
         page: pageNum,
-        limit: 30,
+        limit: limit,
         tags: tags || searchTags,
       });
 
@@ -82,7 +90,7 @@ export default function Home() {
         }
       } else {
         setPosts(prevPosts => reset ? newPosts : [...prevPosts, ...newPosts]);
-        setHasMore(newPosts.length === 30);
+        setHasMore(newPosts.length === limit);
       }
       setIsInitialLoad(false);
     } catch (err) {
@@ -92,7 +100,7 @@ export default function Home() {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [searchTags]);
+  }, [searchTags, limit]);
 
   useEffect(() => {
     apiRef.current = new ImageBoardAPI(site, apiKey);
@@ -280,6 +288,20 @@ export default function Home() {
     setImageType(newImageType);
   };
 
+  const handleLimitChange = (newLimit: number) => {
+    const clamped = Math.max(1, Math.floor(newLimit));
+    setLimit(clamped);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('posts_per_page', String(clamped));
+    }
+    // Reset to page 1 and reload
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+    setError(null);
+    loadPosts(1, true);
+  };
+
   const handleApiKeyChange = (newApiKey: string) => {
     setApiKey(newApiKey);
     // Save API key to localStorage
@@ -320,10 +342,12 @@ export default function Home() {
           onImageTypeChange={handleImageTypeChange}
           onApiKeyChange={handleApiKeyChange}
           onDownloadTags={(s) => { setConsent(s, 'accepted'); startTagPrefetch(s); }}
+          onLimitChange={handleLimitChange}
           currentSite={site}
           currentPage={page}
           currentImageType={imageType}
           currentApiKey={apiKey}
+          currentLimit={limit}
           hasMore={hasMore}
           loading={loading}
           searchTags={searchTags}
