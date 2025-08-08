@@ -7,9 +7,11 @@ interface ApiKeyModalProps {
   onChange: (v: string) => void;
   onSave: () => void;
   onClose: () => void;
+  userId?: string;
+  onClear?: () => void;
 }
 
-export default function ApiKeyModal({ apiKeyInput, onChange, onSave, onClose }: ApiKeyModalProps) {
+export default function ApiKeyModal({ apiKeyInput, onChange, onSave, onClose, userId, onClear }: ApiKeyModalProps) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -17,6 +19,9 @@ export default function ApiKeyModal({ apiKeyInput, onChange, onSave, onClose }: 
         <p className="modal-description">
           Enter your Gelbooru API credentials (required to access the API). Use the format: &amp;api_key=xxx&amp;user_id=yyy
         </p>
+        {userId && (
+          <p className="modal-description">Stored credentials present for user_id: <strong>{userId}</strong></p>
+        )}
         <input
           type="text"
           value={apiKeyInput}
@@ -26,7 +31,8 @@ export default function ApiKeyModal({ apiKeyInput, onChange, onSave, onClose }: 
         />
         <div className="modal-buttons">
           <button onClick={onSave} className="modal-button save">Save</button>
-          <button onClick={onClose} className="modal-button cancel">Cancel</button>
+          {onClear && <button onClick={onClear} className="modal-button cancel">Clear credentials</button>}
+          <button onClick={onClose} className="modal-button cancel">Close</button>
         </div>
       </div>
     </div>

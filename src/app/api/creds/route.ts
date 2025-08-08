@@ -37,10 +37,20 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   // Return credential presence flags without exposing secrets
-  const gel = !!request.cookies.get('gelbooru_api');
-  const login = !!request.cookies.get('e621_login');
-  const key = !!request.cookies.get('e621_api_key');
-  return NextResponse.json({ gelbooru: gel, e621: login && key });
+  const gelVal = request.cookies.get('gelbooru_api')?.value || '';
+  const gel = !!gelVal;
+  let gelUserId: string | undefined;
+  if (gelVal) {
+    try {
+      const params = new URLSearchParams(gelVal.startsWith('&') ? gelVal.slice(1) : gelVal);
+      const uid = params.get('user_id') || '';
+      if (uid) gelUserId = uid;
+    } catch {}
+  }
+  const e621LoginVal = request.cookies.get('e621_login')?.value || '';
+  const e621KeyVal = request.cookies.get('e621_api_key')?.value || '';
+  const e621 = !!e621LoginVal && !!e621KeyVal;
+  return NextResponse.json({ gelbooru: gel, gelbooruUserId: gelUserId, e621, e621Login: e621LoginVal || undefined });
 }
 
 export async function DELETE() {

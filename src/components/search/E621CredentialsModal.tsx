@@ -9,9 +9,11 @@ interface E621CredentialsModalProps {
   onChangeKey: (v: string) => void;
   onSave: () => void;
   onClose: () => void;
+  storedLogin?: string;
+  onClear?: () => void;
 }
 
-export default function E621CredentialsModal({ login, apiKey, onChangeLogin, onChangeKey, onSave, onClose }: E621CredentialsModalProps) {
+export default function E621CredentialsModal({ login, apiKey, onChangeLogin, onChangeKey, onSave, onClose, storedLogin, onClear }: E621CredentialsModalProps) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -19,6 +21,9 @@ export default function E621CredentialsModal({ login, apiKey, onChangeLogin, onC
         <p className="modal-description">
           Provide your e621 username and API key (required to view posts with young characters). They are stored in httpOnly cookies.
         </p>
+        {storedLogin && (
+          <p className="modal-description">Stored credentials present for user: <strong>{storedLogin}</strong></p>
+        )}
         <input
           type="text"
           value={login}
@@ -35,7 +40,8 @@ export default function E621CredentialsModal({ login, apiKey, onChangeLogin, onC
         />
         <div className="modal-buttons">
           <button onClick={onSave} className="modal-button save">Save</button>
-          <button onClick={onClose} className="modal-button cancel">Cancel</button>
+          {onClear && <button onClick={onClear} className="modal-button cancel">Clear credentials</button>}
+          <button onClick={onClose} className="modal-button cancel">Close</button>
         </div>
       </div>
     </div>
