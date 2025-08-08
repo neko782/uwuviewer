@@ -48,3 +48,10 @@ export function getRatingLabel(site: Site, rating: RatingKey): string {
 export function isSupportedForTagPrefetch(site: Site): boolean {
   return site === 'yande.re' || site === 'konachan.com' || site === 'rule34.xxx' || site === 'e621.net';
 }
+
+export function getTagDownloadSizeLabel(site: Site): string {
+  if (site === 'rule34.xxx') return 'about 100 MB';
+  if (site === 'yande.re' || site === 'konachan.com') return 'about 10 MB';
+  if (site === 'e621.net') return 'about 15 MB';
+  return '';
+}

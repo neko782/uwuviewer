@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Site } from '@/lib/api';
-import { isSupportedForTagPrefetch } from '@/lib/constants';
 
 interface FiltersPanelProps {
   currentImageType: 'preview' | 'sample';
@@ -19,48 +18,6 @@ interface FiltersPanelProps {
 }
 
 export default function FiltersPanel({ currentImageType, onImageTypeChange, currentLimit, onLimitChange, currentSite, onOpenGelbooru, onOpenE621, hasGelbooruCreds, hasE621Creds, showDownloadOption, onDownloadTags }: FiltersPanelProps) {
-  const [consent, setConsent] = useState<'accepted' | 'declined' | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (!isSupportedForTagPrefetch(currentSite)) {
-          if (!cancelled) setConsent(null);
-          return;
-        }
-        const res = await fetch(`/api/consent?site=${encodeURIComponent(currentSite)}`);
-        const data = await res.json();
-        if (!cancelled) setConsent((data?.consent as any) ?? null);
-      } catch {
-        if (!cancelled) setConsent(null);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [currentSite]);
-
-  const updateConsent = async (value: 'accepted' | 'declined' | null) => {
-    try {
-      setSaving(true);
-      if (value === null) {
-        await fetch(`/api/consent?site=${encodeURIComponent(currentSite)}`, { method: 'DELETE' });
-      } else {
-        await fetch('/api/consent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ site: currentSite, value }),
-        });
-      }
-      setConsent(value);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('tag-consent-changed', { detail: { site: currentSite, consent: value } }));
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="filter-dropdown">
       <div className="filter-section">
@@ -124,29 +81,6 @@ export default function FiltersPanel({ currentImageType, onImageTypeChange, curr
           </button>
         </div>
       )}
-
-      {/* Settings section to manage consents */}
-      <div className="filter-section">
-        <label className="filter-label">Settings</label>
-        {isSupportedForTagPrefetch(currentSite) ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Tag prefetch consent for this site</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className={`api-key-button ${consent === 'accepted' ? 'active' : ''}`} onClick={() => updateConsent('accepted')} disabled={saving}>
-                Accept
-              </button>
-              <button type="button" className={`api-key-button ${consent === 'declined' ? 'active' : ''}`} onClick={() => updateConsent('declined')} disabled={saving}>
-                Decline
-              </button>
-              <button type="button" className="api-key-button" onClick={() => updateConsent(null)} disabled={saving}>
-                Ask later
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No tag prefetch for this site</div>
-        )}
-      </div>
 
       <style jsx>{`
         .filter-dropdown {

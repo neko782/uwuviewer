@@ -10,6 +10,7 @@ import SuggestionsList from './search/SuggestionsList';
 import ApiKeyModal from './search/ApiKeyModal';
 import E621CredentialsModal from './search/E621CredentialsModal';
 import FiltersPanel from './search/FiltersPanel';
+import SettingsModal from './search/SettingsModal';
 
 interface TagSuggestion {
   name: string;     // display label (may include alias → canonical)
@@ -78,6 +79,7 @@ export default function SearchBar({
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showDownloadOption, setShowDownloadOption] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSiteDropdownRef = useRef<HTMLDivElement>(null);
@@ -419,8 +421,10 @@ export default function SearchBar({
             type="button"
             className="filter-button"
             onClick={() => setShowFilters(!showFilters)}
+            title="Filters"
+            aria-label="Open filters"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M3 4h18M3 12h18M3 20h18" 
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
@@ -446,6 +450,18 @@ export default function SearchBar({
                 />
               )}
         </div>
+        <button
+          type="button"
+          className="settings-button"
+          onClick={() => setShowSettings(true)}
+          title="Settings"
+          aria-label="Open settings"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" stroke="currentColor" strokeWidth="2"/>
+            <path d="M19.4 15a1 1 0 01.2 1.1l-1 1.7a1 1 0 01-1.1.5l-2-.5a7.2 7.2 0 01-1.5.9l-.3 2a1 1 0 01-1 .9h-2a1 1 0 01-1-.9l-.3-2a7.2 7.2 0 01-1.5-.9l-2 .5a1 1 0 01-1.1-.5l-1-1.7A1 1 0 014.6 15l1.7-1.2a7.5 7.5 0 010-1.6L4.6 11a1 1 0 01-.2-1.1l1-1.7a1 1 0 011.1-.5l2 .5c.47-.36.98-.66 1.52-.9l.3-2a1 1 0 011-.9h2a1 1 0 011 .9l.3 2c.54.24 1.05.54 1.52.9l2-.5a1 1 0 011.1.5l1 1.7a1 1 0 01-.2 1.1l-1.7 1.2c.04.27.06.54.06.82s-.02.55-.06.82L19.4 15z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </form>
       
       <div className="desktop-only">
@@ -721,7 +737,8 @@ export default function SearchBar({
         }
 
         .search-button,
-        .filter-button {
+        .filter-button,
+        .settings-button {
           padding: 12px;
           background: var(--bg-tertiary);
           border: 1px solid var(--border-subtle);
@@ -735,7 +752,8 @@ export default function SearchBar({
         }
 
         .search-button:hover,
-        .filter-button:hover {
+        .filter-button:hover,
+        .settings-button:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
         }
@@ -974,6 +992,12 @@ export default function SearchBar({
           />, document.body)
       }
 
+      {showSettings && typeof document !== 'undefined' &&
+        ReactDOM.createPortal(
+          <SettingsModal onClose={() => setShowSettings(false)} />,
+          document.body
+        )
+      }
 
     </div>
   );

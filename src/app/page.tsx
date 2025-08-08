@@ -7,7 +7,7 @@ import ImageCard from '@/components/ImageCard';
 import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
 import { toast } from 'sonner';
-import { DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch } from '@/lib/constants';
+import { DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch, getTagDownloadSizeLabel } from '@/lib/constants';
 
 // Collapsible spinner used while preparing tags. Implemented as a proper
 // React component (so hooks are safe) and rendered via toast.custom.
@@ -342,12 +342,7 @@ export default function Home() {
     }
   }, [quickToast]);
 
-  const getDownloadSizeLabel = useCallback((targetSite: Site) => {
-    if (targetSite === 'rule34.xxx') return 'about 100 MB';
-    if (targetSite === 'yande.re' || targetSite === 'konachan.com') return 'about 10 MB';
-    if (targetSite === 'e621.net') return 'about 15 MB';
-    return '';
-  }, []);
+  // size labels moved to shared constants helper
 
   const getConsentServer = useCallback(async (targetSite: Site): Promise<'accepted' | 'declined' | null> => {
     try {
@@ -594,7 +589,7 @@ export default function Home() {
            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
              <h3>Download tags for {tagPromptSite}?</h3>
              <p className="modal-description">
-               To enable fast, offline tag autocomplete and colored tag info, we can download the full tag list for {tagPromptSite}. The average download size is {getDownloadSizeLabel(tagPromptSite)}.
+               To enable fast, offline tag autocomplete and colored tag info, we can download the full tag list for {tagPromptSite}. The average download size is {getTagDownloadSizeLabel(tagPromptSite)}.
              </p>
              <div className="modal-buttons">
                <button
