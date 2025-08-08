@@ -121,6 +121,78 @@ const E621_TAG_TYPE_NAMES: Record<number, string> = {
 };
 
 class TagCacheManager { 
+  // Progress tracking for SSE
+  private progressBytes: Map<string, number> = new Map();
+  private listeners: Map<string, Set<(data: { site: string; bytes: number; inProgress: boolean; phase?: 'start' | 'progress' | 'done' | 'error' }) => void>> = new Map();
+
+  private emitProgress(site: string, data: { bytes: number; inProgress: boolean; phase?: 'start' | 'progress' | 'done' | 'error' }) {
+    const set = this.listeners.get(site);
+    if (set && set.size) {
+      for (const cb of set) {
+        try { cb({ site, ...data }); } catch {}
+      }
+    }
+  }
+
+  subscribeProgress(site: string, cb: (data: { site: string; bytes: number; inProgress: boolean; phase?: 'start' | 'progress' | 'done' | 'error' }) => void): () => void {
+    let set = this.listeners.get(site);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(site, set);
+    }
+    set.add(cb);
+    return () => {
+      const s = this.listeners.get(site);
+      if (!s) return;
+      s.delete(cb);
+      if (s.size === 0) this.listeners.delete(site);
+    };
+  }
+
+  getDownloadedBytes(site: string): number {
+    return this.progressBytes.get(site) || 0;
+  }
+
+  private startProgress(site: string) {
+    this.progressBytes.set(site, 0);
+    this.emitProgress(site, { bytes: 0, inProgress: true, phase: 'start' });
+  }
+
+  private bumpProgress(site: string, n: number) {
+    const cur = this.progressBytes.get(site) || 0;
+    const next = cur + (n | 0);
+    this.progressBytes.set(site, next);
+    this.emitProgress(site, { bytes: next, inProgress: true, phase: 'progress' });
+  }
+
+  private endProgress(site: string, errored = false) {
+    const bytes = this.progressBytes.get(site) || 0;
+    this.emitProgress(site, { bytes, inProgress: false, phase: errored ? 'error' : 'done' });
+  }
+
+  private async downloadToBuffer(response: Response, site: string): Promise<Buffer> {
+    const reader = (response.body as any)?.getReader?.();
+    if (!reader) {
+      const ab = await response.arrayBuffer();
+      const buf = Buffer.from(ab);
+      this.bumpProgress(site, buf.length);
+      return buf;
+    }
+    const bufs: Buffer[] = [];
+    let total = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        const b = Buffer.from(value);
+        total += b.length;
+        bufs.push(b);
+        this.bumpProgress(site, b.length);
+      }
+    }
+    return Buffer.concat(bufs, total);
+  }
+
   // Ensure in-memory cache is populated from disk without network fetches
   public async ensureCacheLoadedFromDisk(site: string): Promise<void> {
     // If already loaded, nothing to do
@@ -379,7 +451,11 @@ class TagCacheManager {
   }
 
   private async fetchTags(site: string): Promise<void> {
+    let __progressStarted = false;
+    let __errored = false;
     try {
+      this.startProgress(site);
+      __progressStarted = true;
       let url: string;
       const headers: HeadersInit = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -392,7 +468,10 @@ class TagCacheManager {
         if (!response.ok) {
           throw new Error(`Failed to fetch tags: ${response.status}`);
         }
-        const tags: Tag[] = await response.json();
+        // Stream download to track bytes
+        const buf = await this.downloadToBuffer(response, site);
+        const text = buf.toString('utf8');
+        const tags: Tag[] = JSON.parse(text);
         const tagMap = new Map<string, Tag>();
         for (const tag of tags) {
           tagMap.set(tag.name, tag);
@@ -411,7 +490,10 @@ class TagCacheManager {
         if (!response.ok) {
           throw new Error(`Failed to fetch tags: ${response.status}`);
         }
-        const tags: Tag[] = await response.json();
+        // Stream download to track bytes
+        const buf = await this.downloadToBuffer(response, site);
+        const text = buf.toString('utf8');
+        const tags: Tag[] = JSON.parse(text);
         const tagMap = new Map<string, Tag>();
         for (const tag of tags) {
           tagMap.set(tag.name, tag);
@@ -447,8 +529,7 @@ class TagCacheManager {
             console.warn(`Failed to fetch ${url}: ${res.status}`);
             continue;
           }
-          const ab = await res.arrayBuffer();
-          const buf = Buffer.from(ab);
+          const buf = await this.downloadToBuffer(res, site);
           let csv: string;
           try {
             const decompressed = gunzipSync(buf);
@@ -499,8 +580,7 @@ class TagCacheManager {
             console.warn(`Failed to fetch ${url}: ${res.status}`);
             continue;
           }
-          const ab = await res.arrayBuffer();
-          const buf = Buffer.from(ab);
+          const buf = await this.downloadToBuffer(res, site);
           let csv: string;
           try {
             const decompressed = gunzipSync(buf);
@@ -584,9 +664,9 @@ class TagCacheManager {
 
         const reader = (response.body as any).getReader?.();
         if (!reader) {
-          // Fallback: load entire text (may be heavy); try to parse anyway
-           const text = await response.text();
-           const sanitized = text.replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD]/g, '');
+           // Fallback: load entire text (may be heavy); try to parse anyway
+            const text = await response.text();
+            this.bumpProgress(site, Buffer.byteLength(text, 'utf8'));           const sanitized = text.replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD]/g, '');
            try {
              parser.write(sanitized);
            } catch (e) {
@@ -597,6 +677,7 @@ class TagCacheManager {
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
+            if (value) this.bumpProgress(site, value.byteLength);
             const decoded = decoder.decode(value, { stream: true });
             const sanitized = sanitizeXmlChunk(decoded);
             try {
@@ -620,10 +701,13 @@ class TagCacheManager {
       }
     } catch (error) {
       console.error(`Error fetching tags for ${site}:`, error);
+      __errored = true;
       // Keep existing cache if fetch fails
       if (!this.caches.get(site)) {
         throw error;
       }
+    } finally {
+      if (__progressStarted) this.endProgress(site, __errored);
     }
   }
 

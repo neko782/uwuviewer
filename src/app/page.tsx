@@ -11,7 +11,30 @@ import { DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch, getTagDownloadSizeLa
 
 // Collapsible spinner used while preparing tags. Implemented as a proper
 // React component (so hooks are safe) and rendered via toast.custom.
+function formatBytes(n: number): string {
+  if (!n || n <= 0) return '0 B';
+  const units = ['B','KB','MB','GB','TB'];
+  let idx = 0;
+  let val = n as number;
+  while (val >= 1024 && idx < units.length - 1) {
+    val /= 1024;
+    idx++;
+  }
+  return `${val.toFixed(val >= 100 ? 0 : val >= 10 ? 1 : 2)} ${units[idx]}`;
+}
+
 function CollapsiblePrefetchToast({ targetSite, onCollapse, onCancel }: { targetSite: Site; onCollapse: () => void; onCancel: () => void }) {
+  const [bytes, setBytes] = useState(0);
+  useEffect(() => {
+    const onProg = (e: any) => {
+      const s = e?.detail?.site as Site | undefined;
+      const b = e?.detail?.bytes as number | undefined;
+      if (s === targetSite && typeof b === 'number') setBytes(b);
+    };
+    if (typeof window !== 'undefined') window.addEventListener('tag-progress', onProg as any);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('tag-progress', onProg as any); };
+  }, [targetSite]);
+
   return (
     <div style={{ position: 'relative' }}>
       <div style={{
@@ -67,6 +90,7 @@ function CollapsiblePrefetchToast({ targetSite, onCollapse, onCancel }: { target
           </div>
         </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Downloaded {formatBytes(bytes)} so far</div>
         <div style={{ width: '100%', height: 8, background: 'var(--bg-tertiary)', borderRadius: 9999, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
           <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite', borderRadius: 9999 }} />
         </div>
@@ -258,6 +282,8 @@ export default function Home() {
   const toastIdsRef = useRef<Map<Site, string | number>>(new Map());
   const cancelledPrefetchSitesRef = useRef<Set<Site>>(new Set());
   const [minimizedPrefetchSites, setMinimizedPrefetchSites] = useState<Set<Site>>(new Set());
+  const sseRefs = useRef<Map<Site, EventSource>>(new Map());
+  const [progressPerSite, setProgressPerSite] = useState<Map<Site, number>>(new Map());
 
   // Helper: small, clickable toast that dismisses on click
   const quickToast = useCallback((kind: 'success' | 'error' | 'message', text: string) => {
@@ -286,6 +312,12 @@ export default function Home() {
       // Check current status first
       const statusRes = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
       const status = await statusRes.json();
+      try {
+        const initBytes = (status?.downloadedBytes as number) || 0;
+        setProgressPerSite(prev => { const next = new Map(prev); next.set(targetSite, initBytes); return next; });
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('tag-progress', { detail: { site: targetSite, bytes: initBytes } }));
+      } catch {}
+
 
       // If already fresh and has cache, no need to show long toast
       if (status && status.fresh && status.hasCache && status.size > 0) {
@@ -309,6 +341,9 @@ export default function Home() {
             }}
             onCancel={() => {
               cancelledPrefetchSitesRef.current.add(targetSite);
+              // Close SSE if open
+              const es = sseRefs.current.get(targetSite);
+              if (es) { try { es.close(); } catch {} sseRefs.current.delete(targetSite); }
               toast.dismiss(tid);
               const id2 = toastIdsRef.current.get(targetSite);
               if (id2 !== undefined) toast.dismiss(id2);
@@ -329,27 +364,28 @@ export default function Home() {
         });
       }
 
-      // Poll for completion with backoff and cancellation (no timeout)
-      let delayMs = 2000;
-      for (;;) {
-        // Cancel path
-        if (cancelledPrefetchSitesRef.current.has(targetSite)) {
-          if (id !== undefined) toast.dismiss(id);
-          toastIdsRef.current.delete(targetSite);
-          setMinimizedPrefetchSites(prev => {
-            if (!prev.size) return prev;
-            const next = new Set(prev);
-            next.delete(targetSite);
+      // Start SSE status stream for live progress
+      if (!sseRefs.current.get(targetSite)) {
+        const es = new EventSource(`/api/tags/status?site=${encodeURIComponent(targetSite)}&stream=1`);
+        sseRefs.current.set(targetSite, es);
+
+        const handleProgress = (data: any) => {
+          const bytes = (data?.downloadedBytes as number) || 0;
+          setProgressPerSite(prev => {
+            const next = new Map(prev);
+            next.set(targetSite, bytes);
             return next;
           });
-          cancelledPrefetchSitesRef.current.delete(targetSite);
-          break;
-        }
-        await new Promise(r => setTimeout(r, delayMs));
-        try {
-          const res = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
-          const st = await res.json();
-          if (st && st.fresh && st.hasCache && st.size > 0 && !st.inProgress) {
+          if (typeof window !== 'undefined') {
+            try { window.dispatchEvent(new CustomEvent('tag-progress', { detail: { site: targetSite, bytes } })); } catch {}
+          }
+          // Cancel path honored
+          if (cancelledPrefetchSitesRef.current.has(targetSite)) {
+            try { es.close(); } catch {}
+            sseRefs.current.delete(targetSite);
+            return;
+          }
+          if (data && data.inProgress === false) {
             if (id !== undefined) toast.dismiss(id);
             toastIdsRef.current.delete(targetSite);
             setMinimizedPrefetchSites(prev => {
@@ -358,13 +394,20 @@ export default function Home() {
               next.delete(targetSite);
               return next;
             });
-            break; // Disappear silently when finished
+            try { es.close(); } catch {}
+            sseRefs.current.delete(targetSite);
           }
-        } catch {
-          // ignore and continue backoff
-        }
-        // Exponential backoff up to 30s
-        delayMs = Math.min(delayMs * 2, 30000);
+        };
+
+        es.addEventListener('status', (evt: any) => {
+          try { handleProgress(JSON.parse(evt.data)); } catch {}
+        });
+        es.addEventListener('progress', (evt: any) => {
+          try { handleProgress(JSON.parse(evt.data)); } catch {}
+        });
+        es.addEventListener('error', () => {
+          // ignore; browser will try to reconnect automatically
+        });
       }
     } catch (e) {
       console.error('Prefetch failed', e);
@@ -531,7 +574,7 @@ export default function Home() {
                 border: '2px solid var(--bg-tertiary)', borderTopColor: 'var(--accent)',
                 animation: 'spin 0.9s linear infinite'
               }} />
-              <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{s}</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{s} • {formatBytes((progressPerSite.get(s as Site) || 0))}</span>
             </div>
           ))}
         </div>
