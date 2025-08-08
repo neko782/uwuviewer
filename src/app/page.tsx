@@ -125,6 +125,17 @@ export default function Home() {
   const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
   const [blocklist, setBlocklist] = useState<string>('');
   
+  // Track mobile viewport to adjust minimized capsule position
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey }));
   const loadingRef = useRef(false);
   const postsAbortRef = useRef<AbortController | null>(null);
@@ -600,7 +611,9 @@ export default function Home() {
         <div
           style={{
             position: 'fixed',
-            top: 16,
+            // On mobile, dock bottom-right; otherwise top-right
+            top: isMobile ? undefined : 16,
+            bottom: isMobile ? 16 : undefined,
             right: 16,
             display: 'flex',
             flexDirection: 'column',
