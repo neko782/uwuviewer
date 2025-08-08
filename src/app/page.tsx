@@ -301,6 +301,54 @@ export default function Home() {
     ), { duration: 4000 });
   }, []);
 
+  // Allow reopening the collapsed prefetch toast from the minimized capsule
+  const reopenPrefetchToast = useCallback((targetSite: Site) => {
+    // Create a new toast for this site and record its id
+    const id = toast.custom((tid) => (
+      <CollapsiblePrefetchToast
+        targetSite={targetSite}
+        onCollapse={() => {
+          setMinimizedPrefetchSites(prev => {
+            const next = new Set(prev);
+            next.add(targetSite);
+            return next;
+          });
+          toast.dismiss(tid);
+        }}
+        onCancel={() => {
+          cancelledPrefetchSitesRef.current.add(targetSite);
+          // Close SSE if open
+          const es = sseRefs.current.get(targetSite);
+          if (es) { try { es.close(); } catch {} sseRefs.current.delete(targetSite); }
+          // Dismiss any active toast for this site
+          const existing = toastIdsRef.current.get(targetSite);
+          if (existing !== undefined) toast.dismiss(existing);
+          toast.dismiss(tid);
+          toastIdsRef.current.delete(targetSite);
+          // Remove from minimized when canceled
+          setMinimizedPrefetchSites(prev => {
+            if (!prev.size) return prev;
+            const next = new Set(prev);
+            next.delete(targetSite);
+            return next;
+          });
+          quickToast('message', `Canceled tag download for ${targetSite}`);
+        }}
+      />
+    ), { duration: Infinity });
+
+    // Replace any stored id with the new one
+    toastIdsRef.current.set(targetSite, id);
+
+    // Hide the minimized capsule for this site while the full toast is open
+    setMinimizedPrefetchSites(prev => {
+      if (!prev.size) return prev;
+      const next = new Set(prev);
+      next.delete(targetSite);
+      return next;
+    });
+  }, [setMinimizedPrefetchSites, quickToast]);
+
   const startTagPrefetch = useCallback(async (targetSite: Site) => {
     if (!isSupportedForTagPrefetch(targetSite)) return;
 
@@ -386,8 +434,13 @@ export default function Home() {
             return;
           }
           if (data && data.inProgress === false) {
-            if (id !== undefined) toast.dismiss(id);
+            // Dismiss any active toast for this site (including a reopened one)
+            const latestId = toastIdsRef.current.get(targetSite);
+            if (latestId !== undefined) {
+              try { toast.dismiss(latestId); } catch {}
+            }
             toastIdsRef.current.delete(targetSite);
+            // Remove minimized capsule
             setMinimizedPrefetchSites(prev => {
               if (!prev.size) return prev;
               const next = new Set(prev);
@@ -542,7 +595,7 @@ export default function Home() {
 
   return (
     <div className="app-container">
-      {/* Minimized tag-prep spinners: non-interactive overlay in top-right */}
+      {/* Minimized tag-prep spinners: clickable overlay in top-right to reopen the toast */}
       {minimizedPrefetchSites.size > 0 && (
         <div
           style={{
@@ -552,22 +605,26 @@ export default function Home() {
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
-            pointerEvents: 'none',
+            pointerEvents: 'auto',
             zIndex: 9999,
           }}
-          aria-hidden
         >
           {Array.from(minimizedPrefetchSites).map((s) => (
             <div
               key={s}
+              onClick={() => reopenPrefetchToast(s as Site)}
+              title={`Show tag download for ${s}`}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 background: 'var(--bg-secondary)',
                 border: '1px solid var(--border-default)',
                 borderRadius: 9999,
                 padding: '6px 10px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                cursor: 'pointer',
               }}
+              role="button"
+              aria-label={`Show tag download for ${s}`}
             >
               <span style={{
                 display: 'inline-block', width: 14, height: 14, borderRadius: '50%',
