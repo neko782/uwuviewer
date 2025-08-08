@@ -73,8 +73,6 @@ export default function SearchBar({
   const [showE621Modal, setShowE621Modal] = useState(false);
   const [hasGelbooruCreds, setHasGelbooruCreds] = useState(false);
   const [hasE621Creds, setHasE621Creds] = useState(false);
-  const [gelbooruUserId, setGelbooruUserId] = useState<string | undefined>(undefined);
-  const [e621LoginStored, setE621LoginStored] = useState<string | undefined>(undefined);
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -114,7 +112,7 @@ export default function SearchBar({
     setE621ApiKeyInput(currentE621ApiKey);
   }, [currentE621Login, currentE621ApiKey]);
 
-  // Reflect httpOnly cookie presence via server endpoint
+  // Reflect server-stored credential presence via endpoint
   useEffect(() => {
     (async () => {
       try {
@@ -122,8 +120,6 @@ export default function SearchBar({
         const data = await res.json();
         setHasGelbooruCreds(!!data.gelbooru);
         setHasE621Creds(!!data.e621);
-        setGelbooruUserId(data.gelbooruUserId);
-        setE621LoginStored(data.e621Login);
       } catch {}
     })();
   }, []);
@@ -902,7 +898,6 @@ export default function SearchBar({
           <ApiKeyModal
             apiKeyInput={apiKeyInput}
             onChange={(v) => setApiKeyInput(v)}
-            userId={gelbooruUserId}
             onSave={async () => {
               try {
                 await fetch('/api/creds', {
@@ -913,7 +908,6 @@ export default function SearchBar({
                 const res = await fetch('/api/creds');
                 const data = await res.json();
                 setHasGelbooruCreds(!!data.gelbooru);
-                setGelbooruUserId(data.gelbooruUserId);
               } catch {}
               onApiKeyChange('');
               setApiKeyInput('');
@@ -925,7 +919,6 @@ export default function SearchBar({
                 const res = await fetch('/api/creds');
                 const data = await res.json();
                 setHasGelbooruCreds(!!data.gelbooru);
-                setGelbooruUserId(undefined);
               } catch {}
             }}
             onClose={() => setShowApiKeyModal(false)}
@@ -939,7 +932,6 @@ export default function SearchBar({
             apiKey={e621ApiKeyInput}
             onChangeLogin={setE621LoginInput}
             onChangeKey={setE621ApiKeyInput}
-            storedLogin={e621LoginStored}
             onSave={async () => {
               try {
                 await fetch('/api/creds', {
@@ -950,7 +942,6 @@ export default function SearchBar({
                 const res = await fetch('/api/creds');
                 const data = await res.json();
                 setHasE621Creds(!!data.e621);
-                setE621LoginStored(data.e621Login);
               } catch {}
               onE621AuthChange('', '');
               setE621LoginInput('');
@@ -963,7 +954,6 @@ export default function SearchBar({
                 const res = await fetch('/api/creds');
                 const data = await res.json();
                 setHasE621Creds(!!data.e621);
-                setE621LoginStored(undefined);
               } catch {}
             }}
             onClose={() => setShowE621Modal(false)}

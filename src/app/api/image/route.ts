@@ -79,13 +79,15 @@ export async function GET(request: NextRequest) {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Referer': validatedUrl.origin,
     };
-    // Inject Authorization for e621 if present
+    // Inject Authorization for e621 if present (server-side store)
     if ((/^(.+\.)?e621\.net$/i).test(validatedUrl.hostname)) {
-      const login = request.cookies.get('e621_login')?.value || '';
-      const apiKey = request.cookies.get('e621_api_key')?.value || '';
+      const { getGlobalCreds } = await import('@/lib/globalCreds');
+      const creds = await getGlobalCreds();
+      const login = creds.e621Login || '';
+      const apiKey = creds.e621ApiKey || '';
       if (login && apiKey) {
         const b64 = Buffer.from(`${login}:${apiKey}`).toString('base64');
-        upstreamHeaders['Authorization'] = `Basic ${b64}`;
+        (upstreamHeaders as any)['Authorization'] = `Basic ${b64}`;
       }
     }
     if (range) upstreamHeaders['Range'] = range;

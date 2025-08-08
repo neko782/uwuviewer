@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGlobalCreds } from '@/lib/globalCreds';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -82,10 +83,12 @@ export async function GET(request: NextRequest) {
     const isGelbooru = /(^|\.)gelbooru\.com$/i.test(parsed.hostname);
     const isE621 = /(^|\.)e621\.net$/i.test(parsed.hostname);
 
-    // Inject secrets from httpOnly cookies rather than exposing in the client URL
+    // Inject secrets from server-side store (keyed by session cookie)
+    const creds = await getGlobalCreds();
+
     if (isGelbooru) {
       headers['fringeBenefits'] = 'yup';
-      const g = request.cookies.get('gelbooru_api')?.value || '';
+      const g = creds?.gelbooruApiFragment || '';
       if (g) {
         // Append only if not already present, using URLSearchParams for safety
         const params = new URLSearchParams((g.startsWith('&') ? g.slice(1) : g));
@@ -104,8 +107,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (isE621) {
-      const login = request.cookies.get('e621_login')?.value || '';
-      const apiKey = request.cookies.get('e621_api_key')?.value || '';
+      const login = creds?.e621Login || '';
+      const apiKey = creds?.e621ApiKey || '';
       if (login && apiKey) {
         const b64 = Buffer.from(`${login}:${apiKey}`).toString('base64');
         headers['Authorization'] = `Basic ${b64}`;

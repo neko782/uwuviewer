@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGlobalCreds, setGlobalCreds, clearGlobalCreds } from '@/lib/globalCreds';
 
 export const runtime = 'nodejs';
 
@@ -18,16 +19,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const res = NextResponse.json({ ok: true });
 
-    if (typeof body.gelbooruApi === 'string') {
-      // Store raw query fragment e.g. &api_key=xxx&user_id=yyy
-      res.cookies.set('gelbooru_api', body.gelbooruApi, cookieOptions());
+    const toStore: any = {};
+    if (typeof body.gelbooruApi === 'string') toStore.gelbooruApiFragment = body.gelbooruApi;
+    if (typeof body.e621Login === 'string') toStore.e621Login = body.e621Login;
+    if (typeof body.e621ApiKey === 'string') toStore.e621ApiKey = body.e621ApiKey;
+
+    if (Object.keys(toStore).length) {
+      await setGlobalCreds(toStore);
     }
-    if (typeof body.e621Login === 'string') {
-      res.cookies.set('e621_login', body.e621Login, cookieOptions());
-    }
-    if (typeof body.e621ApiKey === 'string') {
-      res.cookies.set('e621_api_key', body.e621ApiKey, cookieOptions());
-    }
+
+    // delete legacy cookies if present
+    res.cookies.delete('gelbooru_api');
+    res.cookies.delete('e621_login');
+    res.cookies.delete('e621_api_key');
 
     return res;
   } catch (e) {
@@ -35,28 +39,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  // Return credential presence flags without exposing secrets
-  const gelVal = request.cookies.get('gelbooru_api')?.value || '';
-  const gel = !!gelVal;
-  let gelUserId: string | undefined;
-  if (gelVal) {
-    try {
-      const params = new URLSearchParams(gelVal.startsWith('&') ? gelVal.slice(1) : gelVal);
-      const uid = params.get('user_id') || '';
-      if (uid) gelUserId = uid;
-    } catch {}
-  }
-  const e621LoginVal = request.cookies.get('e621_login')?.value || '';
-  const e621KeyVal = request.cookies.get('e621_api_key')?.value || '';
-  const e621 = !!e621LoginVal && !!e621KeyVal;
-  return NextResponse.json({ gelbooru: gel, gelbooruUserId: gelUserId, e621, e621Login: e621LoginVal || undefined });
+export async function GET(_request: NextRequest) {
+  const creds = await getGlobalCreds();
+  const gelbooru = !!creds.gelbooruApiFragment;
+  const e621 = !!(creds.e621Login && creds.e621ApiKey);
+  return NextResponse.json({ gelbooru, e621 });
 }
 
 export async function DELETE() {
-  const res = NextResponse.json({ ok: true });
-  res.cookies.delete('gelbooru_api');
-  res.cookies.delete('e621_login');
-  res.cookies.delete('e621_api_key');
-  return res;
+  await clearGlobalCreds();
+  return NextResponse.json({ ok: true });
 }
