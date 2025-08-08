@@ -110,6 +110,7 @@ export default function Home() {
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey }));
   const loadingRef = useRef(false);
   const postsAbortRef = useRef<AbortController | null>(null);
+  const postsRequestIdRef = useRef(0);
 
   // Build explicit columns and distribute posts row-first to preserve masonry look but change order
   const [columnCount, setColumnCount] = useState<number>(5);
@@ -131,6 +132,13 @@ export default function Home() {
     return () => window.removeEventListener('resize', compute);
   }, []);
 
+  // Abort any in-flight posts request on unmount
+  useEffect(() => {
+    return () => {
+      try { postsAbortRef.current?.abort(); } catch {}
+    };
+  }, []);
+
   const columns = useMemo(() => {
     const cols = Math.max(1, columnCount | 0);
     const buckets: UnifiedPost[][] = Array.from({ length: cols }, () => []);
@@ -149,6 +157,9 @@ export default function Home() {
     }
     const controller = new AbortController();
     postsAbortRef.current = controller;
+
+    // Increment request id and capture it for this invocation
+    const currentReqId = ++postsRequestIdRef.current;
     
     loadingRef.current = true;
     setLoading(true);
@@ -164,6 +175,9 @@ export default function Home() {
         { signal: controller.signal }
       );
 
+      // If a newer request started, ignore this response
+      if (currentReqId !== postsRequestIdRef.current) return;
+
       if (newPosts.length === 0) {
         setHasMore(false);
         if (reset) {
@@ -177,12 +191,18 @@ export default function Home() {
     } catch (err: any) {
       // Ignore aborted requests
       if (!(err && err.name === 'AbortError')) {
-        setError(err instanceof Error ? err.message : 'Failed to load posts');
-        setHasMore(false);
+        // Only set error if this request is still the latest
+        if (currentReqId === postsRequestIdRef.current) {
+          setError(err instanceof Error ? err.message : 'Failed to load posts');
+          setHasMore(false);
+        }
       }
     } finally {
-      setLoading(false);
-      loadingRef.current = false;
+      // Only clear loading if this is still the latest request
+      if (currentReqId === postsRequestIdRef.current) {
+        setLoading(false);
+        loadingRef.current = false;
+      }
     }
   }, [searchTags, limit]);
 
