@@ -311,10 +311,7 @@ export class ImageBoardAPI {
     if (tags) queryParams.append('tags', tags);
 
     // Append e621 auth if provided
-    if (this.e621Login && this.e621ApiKey) {
-      queryParams.append('login', this.e621Login);
-      queryParams.append('api_key', this.e621ApiKey);
-    }
+    // Credentials are injected server-side by the proxy using httpOnly cookies
 
     // We go through our proxy which sets an appropriate User-Agent for e621
     const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/posts.json?${queryParams}`)}`;
@@ -392,8 +389,7 @@ export class ImageBoardAPI {
     }
 
     // Add API key if provided (format: &api_key=xxx&user_id=yyy). Rule34 never uses an API key.
-    const apiKeyParam = (this.site === 'gelbooru.com' && this.apiKey) ? this.apiKey : '';
-    const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}${apiKeyParam}`)}`;
+    const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}`)}`;
     const response = await this.fetchWithTimeout(url);
     
     if (!response.ok) {
@@ -438,8 +434,7 @@ export class ImageBoardAPI {
         id: id.toString(),
       });
 
-      const apiKeyParam = (this.site === 'gelbooru.com' && this.apiKey) ? this.apiKey : '';
-      const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}${apiKeyParam}`)}`;
+      const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}`)}`;
       const response = await this.fetchWithTimeout(url);
       
       if (!response.ok) {
@@ -488,8 +483,7 @@ export class ImageBoardAPI {
         limit: '10',
       });
 
-      const apiKeyParam = this.apiKey ? this.apiKey : '';
-      const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}${apiKeyParam}`)}`;
+      const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/index.php?${queryParams}`)}`;
       const response = await this.fetchWithTimeout(url);
       
       if (!response.ok) {

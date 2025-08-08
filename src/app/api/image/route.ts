@@ -4,6 +4,35 @@ import { Agent } from 'undici';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+// Basic in-memory rate limit per IP
+const WINDOW_MS = 60_000;
+const LIMIT = 300; // images per minute per IP
+const rateMap = new Map<string, { count: number; ts: number }>();
+function takeToken(key: string): boolean {
+  const now = Date.now();
+  const entry = rateMap.get(key);
+  if (!entry || now - entry.ts > WINDOW_MS) {
+    rateMap.set(key, { count: 1, ts: now });
+    return true;
+  }
+  if (entry.count >= LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
+function isIpLiteral(host: string): boolean {
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return true;
+  if (host.includes(':')) return true;
+  return false;
+}
+function isAllowedHost(host: string): boolean {
+  const lowered = host.toLowerCase();
+  if (lowered === 'localhost' || lowered.endsWith('.local')) return false;
+  if (isIpLiteral(lowered)) return false;
+  const allow = ['yande.re','konachan.com','e621.net','rule34.xxx','gelbooru.com'];
+  return allow.some((d) => lowered === d || lowered.endsWith('.' + d));
+}
+
 // Create a custom agent with longer timeouts
 const agent = new Agent({
   connectTimeout: 60000, // 60 seconds connection timeout
@@ -19,6 +48,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
   }
 
+  // Rate limit
+  const key = request.headers.get('x-forwarded-for') || 'global';
+  if (!takeToken(key)) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  }
+
   try {
     // Validate URL
     let validatedUrl: URL;
@@ -26,6 +61,13 @@ export async function GET(request: NextRequest) {
       validatedUrl = new URL(url);
     } catch {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
+    }
+
+    if (validatedUrl.protocol !== 'https:' && validatedUrl.protocol !== 'http:') {
+      return NextResponse.json({ error: 'Protocol not allowed' }, { status: 403 });
+    }
+    if (!isAllowedHost(validatedUrl.hostname)) {
+      return NextResponse.json({ error: 'Host not allowed' }, { status: 403 });
     }
 
     // Forward Range and conditional headers for seeking/caching
@@ -37,6 +79,15 @@ export async function GET(request: NextRequest) {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Referer': validatedUrl.origin,
     };
+    // Inject Authorization for e621 if present
+    if ((/^(.+\.)?e621\.net$/i).test(validatedUrl.hostname)) {
+      const login = request.cookies.get('e621_login')?.value || '';
+      const apiKey = request.cookies.get('e621_api_key')?.value || '';
+      if (login && apiKey) {
+        const b64 = Buffer.from(`${login}:${apiKey}`).toString('base64');
+        upstreamHeaders['Authorization'] = `Basic ${b64}`;
+      }
+    }
     if (range) upstreamHeaders['Range'] = range;
     if (ifModifiedSince) upstreamHeaders['If-Modified-Since'] = ifModifiedSince;
     if (ifNoneMatch) upstreamHeaders['If-None-Match'] = ifNoneMatch;

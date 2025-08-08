@@ -204,7 +204,7 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q') || '';
     const site = searchParams.get('site') || 'yande.re';
-    const apiKey = searchParams.get('apiKey') || '';
+    const apiKey = request.cookies.get('gelbooru_api')?.value || '';
 
     if (!query || query.length < 2) {
       return NextResponse.json({ suggestions: [] });

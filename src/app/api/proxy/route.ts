@@ -3,12 +3,58 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+// Basic in-memory rate limit per IP
+const WINDOW_MS = 60_000; // 1 minute
+const LIMIT = 120; // requests per window
+const rateMap = new Map<string, { count: number; ts: number }>();
+
+function takeToken(key: string): boolean {
+  const now = Date.now();
+  const entry = rateMap.get(key);
+  if (!entry || now - entry.ts > WINDOW_MS) {
+    rateMap.set(key, { count: 1, ts: now });
+    return true;
+  }
+  if (entry.count >= LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
+function isIpLiteral(host: string): boolean {
+  // IPv4
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return true;
+  // IPv6
+  if (host.includes(':')) return true;
+  return false;
+}
+
+function isAllowedHost(host: string): boolean {
+  const lowered = host.toLowerCase();
+  // Block local/loopback
+  if (lowered === 'localhost' || lowered.endsWith('.local')) return false;
+  if (isIpLiteral(lowered)) return false;
+  const allow = [
+    'yande.re',
+    'konachan.com',
+    'e621.net',
+    'rule34.xxx',
+    'gelbooru.com',
+  ];
+  return allow.some((d) => lowered === d || lowered.endsWith('.' + d));
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const url = searchParams.get('url');
 
   if (!url) {
     return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
+  }
+
+  // Rate limit
+  const key = request.headers.get('x-forwarded-for') || 'global';
+  if (!takeToken(key)) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }
 
   try {
@@ -20,26 +66,50 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 seconds timeout (less than maxDuration)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return NextResponse.json({ error: 'Protocol not allowed' }, { status: 403 });
+    }
+    if (!isAllowedHost(parsed.hostname)) {
+      return NextResponse.json({ error: 'Host not allowed' }, { status: 403 });
+    }
 
-    const isGelbooru = /(^|\.)gelbooru\.com$/i.test(parsed.hostname);
-
+    // Prepare headers and potential URL mutation
     const headers: Record<string, string> = {
       'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)',
       'Accept': 'application/json',
     };
+
+    const isGelbooru = /(^|\.)gelbooru\.com$/i.test(parsed.hostname);
+    const isE621 = /(^|\.)e621\.net$/i.test(parsed.hostname);
+
+    // Inject secrets from httpOnly cookies rather than exposing in the client URL
     if (isGelbooru) {
       headers['fringeBenefits'] = 'yup';
+      const g = request.cookies.get('gelbooru_api')?.value || '';
+      if (g) {
+        // Append only if not already present
+        if (!parsed.search.includes('api_key=') && !parsed.search.includes('user_id=')) {
+          parsed.search += (parsed.search ? '' : '?') + (g.startsWith('&') ? g.slice(1) : g);
+        }
+      }
     }
 
-    const response = await fetch(url, {
+    if (isE621) {
+      const login = request.cookies.get('e621_login')?.value || '';
+      const apiKey = request.cookies.get('e621_api_key')?.value || '';
+      if (login && apiKey) {
+        const b64 = Buffer.from(`${login}:${apiKey}`).toString('base64');
+        headers['Authorization'] = `Basic ${b64}`;
+      }
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55_000);
+
+    const response = await fetch(parsed.toString(), {
       headers,
       signal: controller.signal,
-      // @ts-ignore - Next.js specific fetch options
-      next: {
-        revalidate: 300, // Cache for 5 minutes
-      },
+      next: { revalidate: 300 },
     });
 
     clearTimeout(timeoutId);
@@ -52,31 +122,24 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, {
-      headers: {
-        'Cache-Control': 'public, max-age=300',
-      },
+      headers: { 'Cache-Control': 'public, max-age=300' },
     });
   } catch (error: any) {
     console.error('Proxy error:', error);
-    
-    // Handle timeout errors
     if (error.name === 'AbortError') {
       return NextResponse.json(
         { error: 'Request timeout - server took too long to respond' },
         { status: 504 }
       );
     }
-    
-    // Handle connection errors
     if (error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT') {
       return NextResponse.json(
         { error: 'Connection timeout - could not reach the server' },
         { status: 504 }
       );
     }
-    
     return NextResponse.json(
       { error: error.message || 'Failed to fetch data' },
       { status: 500 }

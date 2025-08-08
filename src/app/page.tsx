@@ -94,13 +94,7 @@ export default function Home() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [headerHidden, setHeaderHidden] = useState(false);
   const [imageType, setImageType] = useState<'preview' | 'sample'>('preview');
-  const [apiKey, setApiKey] = useState(() => {
-    // Load API key from localStorage on initial load
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('gelbooru_api_key') || '';
-    }
-    return '';
-  });
+  const [apiKey, setApiKey] = useState('');
   const [limit, setLimit] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('posts_per_page');
@@ -109,18 +103,8 @@ export default function Home() {
     }
     return 100;
   });
-  const [e621Login, setE621Login] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('e621_login') || '';
-    }
-    return '';
-  });
-  const [e621ApiKey, setE621ApiKey] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('e621_api_key') || '';
-    }
-    return '';
-  });
+  const [e621Login, setE621Login] = useState<string>('');
+  const [e621ApiKey, setE621ApiKey] = useState<string>('');
   const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
   
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey }));
@@ -443,19 +427,11 @@ export default function Home() {
 
   const handleApiKeyChange = (newApiKey: string) => {
     setApiKey(newApiKey);
-    // Save API key to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('gelbooru_api_key', newApiKey);
-    }
   };
 
   const handleE621AuthChange = (login: string, key: string) => {
     setE621Login(login);
     setE621ApiKey(key);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('e621_login', login);
-      localStorage.setItem('e621_api_key', key);
-    }
   };
 
   const handleRetry = () => {

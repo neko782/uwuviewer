@@ -126,12 +126,10 @@ export default function SearchBar({
 
     try {
       // Include API key for Gelbooru
-      const apiKeyParam = currentSite === 'gelbooru.com' && currentApiKey 
-        ? `&apiKey=${encodeURIComponent(currentApiKey)}` 
-        : '';
+      const apiKeyParam = '';
       
       const response = await fetch(
-        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}${apiKeyParam}`
+        `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}`
       );
       const data = await response.json();
       setSuggestions(data.suggestions || []);
@@ -979,11 +977,18 @@ export default function SearchBar({
               />
               <div className="modal-buttons">
                 <button
-                  onClick={() => {
-                    onApiKeyChange(apiKeyInput);
-                    setShowApiKeyModal(false);
-                  }}
-                  className="modal-button save"
+                    onClick={async () => {
+                      try {
+                        await fetch('/api/creds', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ gelbooruApi: apiKeyInput }),
+                        });
+                      } catch {}
+                      onApiKeyChange('');
+                      setApiKeyInput('');
+                      setShowApiKeyModal(false);
+                    }}                  className="modal-button save"
                 >
                   Save
                 </button>
@@ -1024,11 +1029,19 @@ export default function SearchBar({
               />
               <div className="modal-buttons">
                 <button
-                  onClick={() => {
-                    onE621AuthChange(e621LoginInput, e621ApiKeyInput);
-                    setShowE621Modal(false);
-                  }}
-                  className="modal-button save"
+                    onClick={async () => {
+                      try {
+                        await fetch('/api/creds', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ e621Login: e621LoginInput, e621ApiKey: e621ApiKeyInput }),
+                        });
+                      } catch {}
+                      onE621AuthChange('', '');
+                      setE621LoginInput('');
+                      setE621ApiKeyInput('');
+                      setShowE621Modal(false);
+                    }}                  className="modal-button save"
                 >
                   Save
                 </button>

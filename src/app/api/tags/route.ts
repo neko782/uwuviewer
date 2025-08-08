@@ -3,7 +3,8 @@ import { tagCacheManager } from '@/lib/tagCache';
 
 export async function POST(request: NextRequest) {
   try {
-    const { tags, site, apiKey } = await request.json();
+    const { tags, site, apiKey: apiKeyBody } = await request.json();
+    const apiKey = apiKeyBody || request.cookies.get('gelbooru_api')?.value || '';
 
     if (!tags || !Array.isArray(tags)) {
       return NextResponse.json(
