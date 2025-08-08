@@ -121,12 +121,13 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
 
       {(isVideo || isGif) && (
         <div className="media-badge">
-          {isVideo && (
+          {isVideo ? (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <path d="M7 6h7a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V8a2 2 0 012-2zm9 3l4-2v10l-4-2V9z" />
             </svg>
+          ) : (
+            <span>GIF</span>
           )}
-          <span>{isVideo ? 'Video' : 'GIF'}</span>
         </div>
       )}
 
