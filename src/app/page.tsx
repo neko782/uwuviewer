@@ -32,56 +32,33 @@ export default function Home() {
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey));
   const loadingRef = useRef(false);
 
-  // Keep masonry layout but change visual order to row-first by reordering DOM
-  const galleryRef = useRef<HTMLDivElement | null>(null);
+  // Build explicit columns and distribute posts row-first to preserve masonry look but change order
   const [columnCount, setColumnCount] = useState<number>(5);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const el = galleryRef.current;
-    if (!el) return;
-
     const compute = () => {
-      const style = window.getComputedStyle(el);
-      const countStr = (style as any).columnCount || style.getPropertyValue('column-count') || '1';
-      const count = parseInt(String(countStr), 10);
-      setColumnCount(Number.isFinite(count) && count > 0 ? count : 1);
+      const w = window.innerWidth;
+      let n = 5;
+      if (w <= 480) n = 1;
+      else if (w <= 768) n = 2;
+      else if (w <= 1024) n = 3;
+      else if (w <= 1400) n = 4;
+      else n = 5;
+      setColumnCount(n);
     };
-
     compute();
-
-    const ro = new ResizeObserver(() => compute());
-    ro.observe(el);
-
-    const mqHandlers: MediaQueryList[] = [];
-    const queries = [
-      '(max-width: 480px)',
-      '(max-width: 768px)',
-      '(max-width: 1024px)',
-      '(max-width: 1400px)'
-    ];
-    queries.forEach(q => {
-      const mq = window.matchMedia(q);
-      mq.addEventListener?.('change', compute);
-      mqHandlers.push(mq);
-    });
-
-    return () => {
-      ro.disconnect();
-      mqHandlers.forEach(mq => mq.removeEventListener?.('change', compute));
-    };
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
   }, []);
 
-  const reorderedPosts = useMemo(() => {
+  const columns = useMemo(() => {
     const cols = Math.max(1, columnCount | 0);
-    if (cols === 1) return posts;
-    const out: UnifiedPost[] = [];
-    for (let c = 0; c < cols; c++) {
-      for (let i = c; i < posts.length; i += cols) {
-        out.push(posts[i]);
-      }
-    }
-    return out;
+    const buckets: UnifiedPost[][] = Array.from({ length: cols }, () => []);
+    posts.forEach((post, idx) => {
+      buckets[idx % cols].push(post);
+    });
+    return buckets;
   }, [posts, columnCount]);
 
   const loadPosts = useCallback(async (pageNum: number, reset = false, tags?: string) => {
@@ -365,15 +342,19 @@ export default function Home() {
           </div>
         )}
 
-        <div className="gallery-masonry" ref={galleryRef}>
-          {reorderedPosts.map((post) => (
-            <ImageCard
-              key={post.id}
-              post={post}
-              site={site}
-              imageType={imageType}
-              onClick={() => setSelectedPost(post)}
-            />
+        <div className="gallery-masonry">
+          {columns.map((col, cIdx) => (
+            <div className="masonry-col" key={cIdx}>
+              {col.map((post) => (
+                <ImageCard
+                  key={post.id}
+                  post={post}
+                  site={site}
+                  imageType={imageType}
+                  onClick={() => setSelectedPost(post)}
+                />
+              ))}
+            </div>
           ))}
         </div>
 
@@ -529,33 +510,19 @@ export default function Home() {
         }
 
         .gallery-masonry {
-          column-count: 5;
-          column-gap: 16px;
+          display: flex;
+          gap: 16px;
           margin-bottom: 48px;
         }
-        
-        @media (max-width: 1400px) {
-          .gallery-masonry {
-            column-count: 4;
-          }
-        }
-        
-        @media (max-width: 1024px) {
-          .gallery-masonry {
-            column-count: 3;
-          }
+        .masonry-col {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
         }
         
         @media (max-width: 768px) {
           .gallery-masonry {
-            column-count: 2;
-            column-gap: 12px;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .gallery-masonry {
-            column-count: 1;
+            gap: 12px;
           }
         }
 
