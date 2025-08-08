@@ -7,6 +7,8 @@ export interface StoredCreds {
   e621ApiKey?: string;
   // Per-session choices for various consents; keys are site hostnames
   tagPrefetchConsents?: Record<string, 'accepted' | 'declined'>;
+  // Space-separated tags to always exclude from searches
+  blocklistTags?: string;
 }
 
 interface FileShape {

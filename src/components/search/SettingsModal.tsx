@@ -17,6 +17,21 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false); // dropdown open state
   const [savingSites, setSavingSites] = useState<Set<Site>>(new Set());
+  const [blocklist, setBlocklist] = useState('');
+
+  // Load blocklist from server on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        const v = (data?.blocklist || '').trim();
+        if (!cancelled) setBlocklist(v);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,12 +155,38 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
         </div>
 
+        {/* Blocklist tags input */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Blocklist tags</div>
+          <input
+            type="text"
+            value={blocklist}
+            onChange={async (e) => {
+              const v = e.target.value;
+              setBlocklist(v);
+              try {
+                await fetch('/api/settings', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ blocklist: v })
+                });
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('blocklist-changed', { detail: { blocklist: v } }));
+                }
+              } catch {}
+            }}
+            placeholder="space-separated tags to always exclude"
+            className="blocklist-input"
+            style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
+          />
+          <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>These tags will be added to every search as negatives (e.g., -tag).</div>
+        </div>
+
         <div className="modal-buttons" style={{ marginTop: 12 }}>
           <button onClick={onClose} className="modal-button cancel">Close</button>
         </div>
 
-        <style jsx>{`
-          .settings-dropdown-trigger {
+        <style jsx>{`          .settings-dropdown-trigger {
             width: 100%;
             display: flex;
             align-items: center;

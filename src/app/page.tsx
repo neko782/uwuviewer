@@ -106,6 +106,7 @@ export default function Home() {
   const [e621Login, setE621Login] = useState<string>('');
   const [e621ApiKey, setE621ApiKey] = useState<string>('');
   const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
+  const [blocklist, setBlocklist] = useState<string>('');
   
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey }));
   const loadingRef = useRef(false);
@@ -166,11 +167,17 @@ export default function Home() {
     setError(null);
 
     try {
+      // Build effective tags by appending server-stored blocklist as negatives
+      const baseTags = (tags ?? searchTags) || '';
+      const bl = (blocklist || '').trim();
+      const neg = bl ? bl.split(/\s+/).filter(Boolean).map(t => t.startsWith('-') ? t : `-${t}`).join(' ') : '';
+      const effectiveTags = neg ? (baseTags ? `${baseTags} ${neg}` : neg) : baseTags;
+
       const newPosts = await apiRef.current.getPosts(
         {
           page: pageNum,
           limit: limit,
-          tags: tags || searchTags,
+          tags: effectiveTags,
         },
         { signal: controller.signal }
       );
@@ -204,7 +211,7 @@ export default function Home() {
         loadingRef.current = false;
       }
     }
-  }, [searchTags, limit]);
+  }, [searchTags, limit, blocklist]);
 
   useEffect(() => {
     apiRef.current = new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey });
@@ -215,11 +222,28 @@ export default function Home() {
     loadPosts(1, true, searchTags);
   }, [site, searchTags, apiKey, e621Login, e621ApiKey, loadPosts]);
 
-  // On first app start (default provider selected), ask to download tags for the default site
+  // Load blocklist from server and listen for changes
   useEffect(() => {
-    maybePromptOrAutoPrefetch(site);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        const v = (data?.blocklist || '').trim();
+        if (!cancelled) setBlocklist(v);
+      } catch {}
+    })();
+    const onChanged = (e: any) => {
+      const v = (e?.detail?.blocklist || '').trim();
+      setBlocklist(v);
+    };
+    if (typeof window !== 'undefined') window.addEventListener('blocklist-changed', onChanged as any);
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined') window.removeEventListener('blocklist-changed', onChanged as any);
+    };
   }, []);
+
 
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage !== page && !loadingRef.current) {
@@ -482,6 +506,16 @@ export default function Home() {
       loadPosts(page);
     }
   };
+
+  // When blocklist changes, refresh results from page 1
+  useEffect(() => {
+    // avoid refetch before initial apiRef is ready - but safe to call
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+    setError(null);
+    loadPosts(1, true);
+  }, [blocklist, loadPosts]);
 
   return (
     <div className="app-container">
