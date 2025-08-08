@@ -329,11 +329,9 @@ export default function Home() {
         });
       }
 
-      // Poll for completion with backoff and cancellation
-      let done = false;
-      const maxAttempts = 10;
+      // Poll for completion with backoff and cancellation (no timeout)
       let delayMs = 2000;
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      for (;;) {
         // Cancel path
         if (cancelledPrefetchSitesRef.current.has(targetSite)) {
           if (id !== undefined) toast.dismiss(id);
@@ -345,7 +343,6 @@ export default function Home() {
             return next;
           });
           cancelledPrefetchSitesRef.current.delete(targetSite);
-          done = true;
           break;
         }
         await new Promise(r => setTimeout(r, delayMs));
@@ -353,7 +350,6 @@ export default function Home() {
           const res = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
           const st = await res.json();
           if (st && st.fresh && st.hasCache && st.size > 0 && !st.inProgress) {
-            done = true;
             if (id !== undefined) toast.dismiss(id);
             toastIdsRef.current.delete(targetSite);
             setMinimizedPrefetchSites(prev => {
@@ -369,18 +365,6 @@ export default function Home() {
         }
         // Exponential backoff up to 30s
         delayMs = Math.min(delayMs * 2, 30000);
-      }
-      if (!done) {
-        // Timed out
-        if (id !== undefined) toast.dismiss(id);
-        toastIdsRef.current.delete(targetSite);
-        setMinimizedPrefetchSites(prev => {
-          if (!prev.size) return prev;
-          const next = new Set(prev);
-          next.delete(targetSite);
-          return next;
-        });
-        quickToast('error', `Tag download for ${targetSite} is taking too long. Try again later.`);
       }
     } catch (e) {
       console.error('Prefetch failed', e);
