@@ -6,6 +6,10 @@ import { Site } from '@/lib/api';
 import Image from 'next/image';
 import { SITE_CONFIG, DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch } from '@/lib/constants';
 import Pagination from './Pagination';
+import SuggestionsList from './search/SuggestionsList';
+import ApiKeyModal from './search/ApiKeyModal';
+import E621CredentialsModal from './search/E621CredentialsModal';
+import FiltersPanel from './search/FiltersPanel';
 
 interface TagSuggestion {
   name: string;     // display label (may include alias → canonical)
@@ -379,34 +383,13 @@ export default function SearchBar({
           />
           
           {showSuggestions && suggestions.length > 0 && (
-            <div ref={suggestionsRef} className="autocomplete-dropdown">
-              {suggestions.map((suggestion, index) => (
-                <div
-                  key={suggestion.name}
-                  className={`autocomplete-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    applySuggestion(suggestion);
-                  }}
-                  onMouseDown={(e) => {
-                    // Prevent blur event on input
-                    e.preventDefault();
-                  }}
-                  onMouseEnter={() => setSelectedSuggestionIndex(index)}
-                >
-                  <span 
-                    className="tag-name"
-                    style={{ color: suggestion.color }}
-                  >
-                    {suggestion.name}
-                  </span>
-                  <span className="tag-count">
-                    {suggestion.count.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <SuggestionsList
+              ref={suggestionsRef}
+              suggestions={suggestions}
+              selectedIndex={selectedSuggestionIndex}
+              onSelect={(s) => applySuggestion(s)}
+              onHover={(i) => setSelectedSuggestionIndex(i)}
+            />
           )}
         </div>
         
@@ -430,87 +413,23 @@ export default function SearchBar({
           </button>
 
               {showFilters && (
-                <div className="filter-dropdown">
-                  <div className="filter-section">
-                    <label className="filter-label">Image Quality</label>
-                    <div className="filter-options">
-                      <button
-                        type="button"
-                        className={`filter-option ${currentImageType === 'preview' ? 'active' : ''}`}
-                        onClick={() => onImageTypeChange('preview')}
-                      >
-                        Preview (Fast)
-                      </button>
-                      <button
-                        type="button"
-                        className={`filter-option ${currentImageType === 'sample' ? 'active' : ''}`}
-                        onClick={() => onImageTypeChange('sample')}
-                      >
-                        Sample (HQ)
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="filter-section">
-                    <label className="filter-label">Posts per page</label>
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={currentLimit}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value || '0', 10);
-                        if (!Number.isNaN(v) && v > 0) {
-                          onLimitChange(v);
-                        }
-                      }}
-                      className="limit-input"
-                    />
-                  </div>
-
-                  {currentSite === 'gelbooru.com' && (
-                    <div className="filter-section">
-                      <label className="filter-label">API Key</label>
-                      <button
-                        type="button"
-                        className="api-key-button"
-                        onClick={() => setShowApiKeyModal(true)}
-                      >
-                        {hasGelbooruCreds ? 'API Key Set ✓' : 'Set API Key'}
-                      </button>
-                    </div>
-                  )}
-
-                  {currentSite === 'e621.net' && (
-                    <div className="filter-section">
-                      <label className="filter-label">e621 Credentials</label>
-                      <button
-                        type="button"
-                        className="api-key-button"
-                        onClick={() => setShowE621Modal(true)}
-                      >
-                        {hasE621Creds ? 'Credentials Set ✓' : 'Set Credentials'}
-                      </button>
-                    </div>
-                  )}
-
-                  {showDownloadOption && (
-                    <div className="filter-section">
-                      <label className="filter-label">Tag Cache</label>
-                      <button
-                        type="button"
-                        className="api-key-button"
-                        onClick={() => {
-                          onDownloadTags(currentSite);
-                          setShowFilters(false);
-                          setShowDownloadOption(false);
-                        }}
-                      >
-                        Download tag cache
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <FiltersPanel
+                  currentImageType={currentImageType}
+                  onImageTypeChange={onImageTypeChange}
+                  currentLimit={currentLimit}
+                  onLimitChange={onLimitChange}
+                  currentSite={currentSite}
+                  onOpenGelbooru={() => setShowApiKeyModal(true)}
+                  onOpenE621={() => setShowE621Modal(true)}
+                  hasGelbooruCreds={hasGelbooruCreds}
+                  hasE621Creds={hasE621Creds}
+                  showDownloadOption={showDownloadOption}
+                  onDownloadTags={() => {
+                    onDownloadTags(currentSite);
+                    setShowFilters(false);
+                    setShowDownloadOption(false);
+                  }}
+                />
               )}
         </div>
       </form>
@@ -976,50 +895,53 @@ export default function SearchBar({
 
       {showApiKeyModal && typeof document !== 'undefined' && 
         ReactDOM.createPortal(
-          <div className="modal-overlay" onClick={() => setShowApiKeyModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <h3>Gelbooru API Key</h3>
-              <p className="modal-description">
-                Enter your Gelbooru API credentials (required to access the API). Use the format: &api_key=xxx&user_id=yyy
-              </p>
-              <input
-                type="text"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                placeholder="&api_key=your_key&user_id=your_id"
-                className="api-key-input"
-              />
-              <div className="modal-buttons">
-                <button
-                    onClick={async () => {
-                      try {
-                        await fetch('/api/creds', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ gelbooruApi: apiKeyInput }),
-                        });
-                        const res = await fetch('/api/creds');
-                        const data = await res.json();
-                        setHasGelbooruCreds(!!data.gelbooru);
-                      } catch {}
-                      onApiKeyChange('');
-                      setApiKeyInput('');
-                      setShowApiKeyModal(false);
-                    }}                  className="modal-button save"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setShowApiKeyModal(false)}
-                  className="modal-button cancel"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )
+          <ApiKeyModal
+            apiKeyInput={apiKeyInput}
+            onChange={(v) => setApiKeyInput(v)}
+            onSave={async () => {
+              try {
+                await fetch('/api/creds', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ gelbooruApi: apiKeyInput }),
+                });
+                const res = await fetch('/api/creds');
+                const data = await res.json();
+                setHasGelbooruCreds(!!data.gelbooru);
+              } catch {}
+              onApiKeyChange('');
+              setApiKeyInput('');
+              setShowApiKeyModal(false);
+            }}
+            onClose={() => setShowApiKeyModal(false)}
+          />, document.body)
+      }
+
+      {showE621Modal && typeof document !== 'undefined' &&
+        ReactDOM.createPortal(
+          <E621CredentialsModal
+            login={e621LoginInput}
+            apiKey={e621ApiKeyInput}
+            onChangeLogin={setE621LoginInput}
+            onChangeKey={setE621ApiKeyInput}
+            onSave={async () => {
+              try {
+                await fetch('/api/creds', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ e621Login: e621LoginInput, e621ApiKey: e621ApiKeyInput }),
+                });
+                const res = await fetch('/api/creds');
+                const data = await res.json();
+                setHasE621Creds(!!data.e621);
+              } catch {}
+              onE621AuthChange('', '');
+              setE621LoginInput('');
+              setE621ApiKeyInput('');
+              setShowE621Modal(false);
+            }}
+            onClose={() => setShowE621Modal(false)}
+          />, document.body)
       }
 
       {showE621Modal && typeof document !== 'undefined' &&
