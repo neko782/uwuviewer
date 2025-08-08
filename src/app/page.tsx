@@ -179,11 +179,23 @@ export default function Home() {
 
   // Parse the current pathname once on mount (direct visit) and hydrate state
   useEffect(() => {
+    const initPrefetchDoneRef = { current: false } as { current: boolean };
+    const runPrefetchOnce = (target: Site) => {
+      if (!initPrefetchDoneRef.current) {
+        maybePromptOrAutoPrefetch(target);
+        initPrefetchDoneRef.current = true;
+      }
+    };
+
     const raw = getPathname();
     const segs = raw.split('/').filter(Boolean).map((x) => {
       try { return decodeURIComponent(x); } catch { return x; }
     });
-    if (segs.length === 0) return; // root -> leave defaults
+    if (segs.length === 0) {
+      // root -> leave defaults and prefetch for default site
+      runPrefetchOnce(site);
+      return;
+    }
 
     const s0 = segs[0];
     if (!isValidSite(s0)) return; // unknown; ignore
@@ -198,6 +210,7 @@ export default function Home() {
           setSearchTags(def);
         }
       }
+      runPrefetchOnce(newSite);
       return;
     }
 
@@ -223,6 +236,8 @@ export default function Home() {
         loadPosts(newPage, true, newTags);
       }
     }
+
+    runPrefetchOnce(newSite);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -356,11 +371,7 @@ export default function Home() {
     };
   }, []);
 
-  // On first app start (default provider selected), ask to download tags for the default site
-  useEffect(() => {
-    maybePromptOrAutoPrefetch(site);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Initial tag prefetch will be triggered from the URL-parse effect to honor the URL's site
 
 
   const handlePageChange = useCallback((newPage: number) => {
