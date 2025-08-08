@@ -92,6 +92,15 @@ export interface UnifiedPost {
   preview_height: number;
   source: string;
   has_children: boolean;
+
+  // Optional metadata for richer info display
+  created_at?: number | string;
+  author?: string;
+  md5?: string;
+  file_size?: number;
+  file_ext?: string;
+  parent_id?: number | null;
+  fav_count?: number;
 }
 
 export type Site = 'yande.re' | 'konachan.com' | 'gelbooru.com' | 'rule34.xxx' | 'e621.net';
@@ -186,11 +195,20 @@ export class ImageBoardAPI {
       preview_height: post.preview_height,
       source: post.source,
       has_children: post.has_children,
+      // extra metadata
+      created_at: post.created_at,
+      author: post.author,
+      md5: post.md5,
+      file_size: post.file_size,
+      file_ext: (post as any).file_ext,
+      parent_id: post.parent_id,
     };
   }
 
   private convertGelbooruToUnified(post: any): UnifiedPost {
     // Handle Gelbooru/Rule34 different field formats and potential empty values
+    const parentRaw = post.parent_id;
+    const parent_id = parentRaw === undefined || parentRaw === null ? null : (Number(parentRaw) || 0) || null;
     return {
       id: Number(post.id),
       tags: post.tags || '',
@@ -208,6 +226,11 @@ export class ImageBoardAPI {
       source: post.source || '',
       // has_children might be 'true'/'false', boolean, or missing
       has_children: post.has_children === true || post.has_children === 'true',
+      // extra metadata (best-effort)
+      created_at: (post.created_at ?? post.change) || undefined,
+      author: post.owner || undefined,
+      md5: post.md5 || post.hash || undefined,
+      parent_id,
     };
   }
 
@@ -239,6 +262,9 @@ export class ImageBoardAPI {
 
     const has_children = !!post.relationships?.has_children;
 
+    const author = Array.isArray(post.tags?.artist) && post.tags.artist.length > 0 ? post.tags.artist[0] : undefined;
+    const parent_id = (post.relationships && post.relationships.parent_id != null) ? Number(post.relationships.parent_id) : null;
+
     return {
       id: Number(post.id),
       tags,
@@ -253,6 +279,14 @@ export class ImageBoardAPI {
       preview_height,
       source,
       has_children,
+      // extras
+      created_at: post.created_at,
+      author,
+      md5: post.file?.md5,
+      file_size: typeof post.file?.size === 'number' ? post.file.size : undefined,
+      file_ext: post.file?.ext,
+      parent_id,
+      fav_count: typeof post.fav_count === 'number' ? post.fav_count : undefined,
     };
   }
 

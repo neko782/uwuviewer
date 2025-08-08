@@ -88,6 +88,58 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
   const displayUrl = isVideo ? post.file_url : (post.sample_url || post.file_url);
   const hasImage = !!displayUrl;
 
+  const formatBytes = (n?: number): string => {
+    if (!n || n <= 0) return 'Unknown';
+    const units = ['B','KB','MB','GB','TB'];
+    let idx = 0; let val = n;
+    while (val >= 1024 && idx < units.length - 1) { val /= 1024; idx++; }
+    return `${val.toFixed(val >= 100 ? 0 : val >= 10 ? 1 : 2)} ${units[idx]}`;
+  };
+
+  const extFromUrl = (url?: string): string | undefined => {
+    if (!url) return undefined;
+    try {
+      const u = new URL(url);
+      const p = u.pathname.toLowerCase();
+      const m = p.match(/\.([a-z0-9]+)$/);
+      return m ? m[1] : undefined;
+    } catch {
+      const m = (url || '').toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
+      return m ? m[1] : undefined;
+    }
+  };
+
+  const fileExt = (post as any).file_ext || extFromUrl(post.file_url) || extFromUrl(post.sample_url);
+
+  const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+  const ratio = (() => {
+    const w = post.width | 0; const h = post.height | 0;
+    if (!w || !h) return '';
+    const g = gcd(w, h);
+    return `${Math.round(w / g)}:${Math.round(h / g)}`;
+  })();
+  const megapixels = (post.width && post.height) ? (post.width * post.height / 1_000_000) : 0;
+
+  const createdAtText = (() => {
+    const v: any = (post as any).created_at;
+    if (!v) return '';
+    try {
+      const d = typeof v === 'number' ? new Date(v * 1000) : new Date(v);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleString();
+    } catch { return ''; }
+  })();
+
+  const artistFromTags = (() => {
+    const groups = (tagData?.grouped || {}) as Record<string, string[]>;
+    const arr = groups['Artist'];
+    if (arr && arr.length > 0) return arr.map(t => t.replace(/_/g, ' ')).join(', ');
+    return undefined;
+  })();
+
+  const authorName = (post as any).author || artistFromTags;
+  const favCount: number | undefined = (post as any).fav_count;
+
   return (
     <div className="viewer-overlay" onClick={onClose}>
       <div className="viewer-container" onClick={(e) => e.stopPropagation()}>
@@ -132,28 +184,6 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
         </div>
 
         <div className="viewer-info">
-          <div className="info-section">
-            <h3>Information</h3>
-            <div className="info-grid">
-              <span className="info-label">Size</span>
-              <span className="info-value">{post.width} × {post.height}</span>
-              
-              <span className="info-label">Rating</span>
-              <span className="info-value">{getRatingLabel(site, post.rating)}</span>
-              
-              <span className="info-label">Score</span>
-              <span className="info-value">{post.score}</span>
-              
-              <span className="info-label">Source</span>
-              <span className="info-value">
-                {post.source ? (
-                  <a href={post.source} target="_blank" rel="noopener noreferrer">
-                    View source
-                  </a>
-                ) : 'None'}
-              </span>
-            </div>
-          </div>
 
           <div className="info-section">
             <h3>Tags</h3>
@@ -247,6 +277,73 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
               </svg>
               View Post
             </a>
+          </div>
+
+          <div className="info-section">
+            <h3>Information</h3>
+            <div className="info-grid">
+              <span className="info-label">Site</span>
+              <span className="info-value">{site}</span>
+
+              <span className="info-label">Post ID</span>
+              <span className="info-value"><a href={getPostUrl()} target="_blank" rel="noopener noreferrer">{post.id}</a></span>
+
+              <span className="info-label">Size</span>
+              <span className="info-value">{post.width} × {post.height}{megapixels ? ` (${megapixels.toFixed(2)} MP)` : ''}</span>
+
+              {ratio && (<>
+                <span className="info-label">Aspect</span>
+                <span className="info-value">{ratio}</span>
+              </>)}
+
+              <span className="info-label">Rating</span>
+              <span className="info-value">{getRatingLabel(site, post.rating)}</span>
+
+              <span className="info-label">Score</span>
+              <span className="info-value">{post.score}</span>
+
+              {typeof favCount === 'number' && (
+                <>
+                  <span className="info-label">Favorites</span>
+                  <span className="info-value">{favCount}</span>
+                </>
+              )}
+
+              <span className="info-label">Has Children</span>
+              <span className="info-value">{post.has_children ? 'Yes' : 'No'}</span>
+
+              {createdAtText && (
+                <>
+                  <span className="info-label">Created</span>
+                  <span className="info-value">{createdAtText}</span>
+                </>
+              )}
+
+              {authorName && (
+                <>
+                  <span className="info-label">Artist</span>
+                  <span className="info-value">{authorName}</span>
+                </>
+              )}
+
+              <span className="info-label">File Type</span>
+              <span className="info-value">{fileExt ? fileExt.toUpperCase() : 'Unknown'}</span>
+
+              <span className="info-label">File Size</span>
+              <span className="info-value">{formatBytes((post as any).file_size)}</span>
+
+              <span className="info-label">MD5</span>
+              <span className="info-value">{(post as any).md5 || 'Unknown'}</span>
+
+              <span className="info-label">Source</span>
+              <span className="info-value">
+                {post.source ? (
+                  <a href={post.source} target="_blank" rel="noopener noreferrer">
+                    View source
+                  </a>
+                ) : 'None'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
