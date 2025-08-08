@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { ImageBoardAPI, UnifiedPost, Site } from '@/lib/api';
 import ImageCard from '@/components/ImageCard';
@@ -31,6 +31,58 @@ export default function Home() {
   
   const apiRef = useRef<ImageBoardAPI>(new ImageBoardAPI(site, apiKey));
   const loadingRef = useRef(false);
+
+  // Keep masonry layout but change visual order to row-first by reordering DOM
+  const galleryRef = useRef<HTMLDivElement | null>(null);
+  const [columnCount, setColumnCount] = useState<number>(5);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = galleryRef.current;
+    if (!el) return;
+
+    const compute = () => {
+      const style = window.getComputedStyle(el);
+      const countStr = (style as any).columnCount || style.getPropertyValue('column-count') || '1';
+      const count = parseInt(String(countStr), 10);
+      setColumnCount(Number.isFinite(count) && count > 0 ? count : 1);
+    };
+
+    compute();
+
+    const ro = new ResizeObserver(() => compute());
+    ro.observe(el);
+
+    const mqHandlers: MediaQueryList[] = [];
+    const queries = [
+      '(max-width: 480px)',
+      '(max-width: 768px)',
+      '(max-width: 1024px)',
+      '(max-width: 1400px)'
+    ];
+    queries.forEach(q => {
+      const mq = window.matchMedia(q);
+      mq.addEventListener?.('change', compute);
+      mqHandlers.push(mq);
+    });
+
+    return () => {
+      ro.disconnect();
+      mqHandlers.forEach(mq => mq.removeEventListener?.('change', compute));
+    };
+  }, []);
+
+  const reorderedPosts = useMemo(() => {
+    const cols = Math.max(1, columnCount | 0);
+    if (cols === 1) return posts;
+    const out: UnifiedPost[] = [];
+    for (let c = 0; c < cols; c++) {
+      for (let i = c; i < posts.length; i += cols) {
+        out.push(posts[i]);
+      }
+    }
+    return out;
+  }, [posts, columnCount]);
 
   const loadPosts = useCallback(async (pageNum: number, reset = false, tags?: string) => {
     if (loadingRef.current && !reset) return;
@@ -313,8 +365,8 @@ export default function Home() {
           </div>
         )}
 
-        <div className="gallery-masonry">
-          {posts.map((post) => (
+        <div className="gallery-masonry" ref={galleryRef}>
+          {reorderedPosts.map((post) => (
             <ImageCard
               key={post.id}
               post={post}
