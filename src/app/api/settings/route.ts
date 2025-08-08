@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrCreateSession, ensureSessionCookieOnResponse } from '@/lib/session';
-import { getCreds, setCreds } from '@/lib/credentialStore';
+import { getGlobalCreds, setGlobalCreds } from '@/lib/globalCreds';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    const res = NextResponse.json({ ok: true });
-    const sid = getOrCreateSession(request, res);
-    ensureSessionCookieOnResponse(res, sid);
-
-    const entry = await getCreds(sid);
+    const entry = await getGlobalCreds();
     const blocklist = (entry?.blocklistTags || '').trim();
     return NextResponse.json({ blocklist });
   } catch {
@@ -25,30 +20,17 @@ export async function POST(request: NextRequest) {
     // normalize whitespace to single spaces
     blocklist = blocklist.replace(/\s+/g, ' ').trim();
 
-    const res = NextResponse.json({ ok: true });
-    const sid = getOrCreateSession(request, res);
-    ensureSessionCookieOnResponse(res, sid);
-
-    const entry = (await getCreds(sid)) || {};
-    await setCreds(sid, { ...entry, blocklistTags: blocklist });
-
-    return res;
+    await setGlobalCreds({ blocklistTags: blocklist });
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(_request: NextRequest) {
   try {
-    const res = NextResponse.json({ ok: true });
-    const sid = getOrCreateSession(request, res);
-    ensureSessionCookieOnResponse(res, sid);
-
-    const entry = (await getCreds(sid)) || {};
-    if (entry.blocklistTags) {
-      await setCreds(sid, { ...entry, blocklistTags: '' });
-    }
-    return res;
+    await setGlobalCreds({ blocklistTags: '' });
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Failed to clear settings' }, { status: 500 });
   }

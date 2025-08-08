@@ -337,7 +337,7 @@ export class ImageBoardAPI {
     if (tags) queryParams.append('tags', tags);
 
     // Append e621 auth if provided
-    // Credentials are injected server-side by the proxy using httpOnly cookies
+    // Credentials are injected server-side by the proxy from a global store
 
     // We go through our proxy which sets an appropriate User-Agent for e621
     const url = `/api/proxy?url=${encodeURIComponent(`${this.baseUrl}/posts.json?${queryParams}`)}`;

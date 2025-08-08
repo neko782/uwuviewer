@@ -95,14 +95,7 @@ export default function Home() {
   const [headerHidden, setHeaderHidden] = useState(false);
   const [imageType, setImageType] = useState<'preview' | 'sample'>('preview');
   const [apiKey, setApiKey] = useState('');
-  const [limit, setLimit] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('posts_per_page');
-      const n = stored ? parseInt(stored, 10) : 100;
-      return Number.isFinite(n) && n > 0 ? n : 100;
-    }
-    return 100;
-  });
+  const [limit, setLimit] = useState<number>(100);
   const [e621Login, setE621Login] = useState<string>('');
   const [e621ApiKey, setE621ApiKey] = useState<string>('');
   const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
@@ -483,9 +476,6 @@ export default function Home() {
   const handleLimitChange = (newLimit: number) => {
     const clamped = Math.max(1, Math.floor(newLimit));
     setLimit(clamped);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('posts_per_page', String(clamped));
-    }
     // Reset to page 1 and reload
     setPosts([]);
     setPage(1);

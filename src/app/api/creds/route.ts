@@ -3,11 +3,9 @@ import { getGlobalCreds, setGlobalCreds, clearGlobalCreds } from '@/lib/globalCr
 
 export const runtime = 'nodejs';
 
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const res = NextResponse.json({ ok: true });
 
     const toStore: any = {};
     if (typeof body.gelbooruApi === 'string') toStore.gelbooruApiFragment = body.gelbooruApi;
@@ -18,12 +16,7 @@ export async function POST(request: NextRequest) {
       await setGlobalCreds(toStore);
     }
 
-    // delete legacy cookies if present
-    res.cookies.delete('gelbooru_api');
-    res.cookies.delete('e621_login');
-    res.cookies.delete('e621_api_key');
-
-    return res;
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ ok: false }, { status: 400 });
   }

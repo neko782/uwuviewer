@@ -5,6 +5,9 @@ export interface GlobalCreds {
   gelbooruApiFragment?: string; // "&api_key=...&user_id=..."
   e621Login?: string;
   e621ApiKey?: string;
+  // Global preferences/state for the single-user app
+  tagPrefetchConsents?: Record<string, 'accepted' | 'declined'>;
+  blocklistTags?: string;
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');

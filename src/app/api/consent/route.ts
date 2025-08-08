@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrCreateSession, ensureSessionCookieOnResponse } from '@/lib/session';
-import { getCreds, setCreds } from '@/lib/credentialStore';
+import { getGlobalCreds, setGlobalCreds } from '@/lib/globalCreds';
 import { isSupportedForTagPrefetch } from '@/lib/constants';
 
 export const runtime = 'nodejs';
@@ -11,11 +10,7 @@ export async function GET(request: NextRequest) {
     const url = request.nextUrl;
     const site = url.searchParams.get('site') as string | null;
 
-    const res = NextResponse.next();
-    const sid = getOrCreateSession(request, res);
-    ensureSessionCookieOnResponse(res, sid);
-
-    const entry = await getCreds(sid);
+    const entry = await getGlobalCreds();
     const consents = entry?.tagPrefetchConsents || {};
 
     if (site) {
@@ -45,17 +40,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid value' }, { status: 400 });
     }
 
-    const res = NextResponse.json({ ok: true });
-    const sid = getOrCreateSession(request, res);
-    ensureSessionCookieOnResponse(res, sid);
-
-    const entry = (await getCreds(sid)) || {};
+    const entry = await getGlobalCreds();
     const consents = { ...(entry.tagPrefetchConsents || {}) };
     consents[site] = value as 'accepted' | 'declined';
 
-    await setCreds(sid, { ...entry, tagPrefetchConsents: consents });
+    await setGlobalCreds({ tagPrefetchConsents: consents });
 
-    return res;
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Failed to set consent' }, { status: 500 });
   }
@@ -70,17 +61,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unsupported or missing site' }, { status: 400 });
     }
 
-    const res = NextResponse.json({ ok: true });
-    const sid = getOrCreateSession(request, res);
-    ensureSessionCookieOnResponse(res, sid);
-
-    const entry = (await getCreds(sid)) || {};
+    const entry = await getGlobalCreds();
     const consents = { ...(entry.tagPrefetchConsents || {}) };
     delete consents[site];
 
-    await setCreds(sid, { ...entry, tagPrefetchConsents: consents });
+    await setGlobalCreds({ tagPrefetchConsents: consents });
 
-    return res;
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Failed to clear consent' }, { status: 500 });
   }

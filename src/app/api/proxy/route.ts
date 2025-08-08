@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     const isGelbooru = /(^|\.)gelbooru\.com$/i.test(parsed.hostname);
     const isE621 = /(^|\.)e621\.net$/i.test(parsed.hostname);
 
-    // Inject secrets from server-side store (keyed by session cookie)
+    // Inject secrets from the global server-side store
     const creds = await getGlobalCreds();
 
     if (isGelbooru) {
