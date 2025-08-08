@@ -213,7 +213,7 @@ class TagCacheManager {
         this.caches.set(site, null);
         console.debug(`Disk cache expired for ${site}, will fetch fresh data`);
       }
-    } catch (error) {
+    } catch {
       // Mark as checked to avoid repeated disk reads/logs
       this.caches.set(site, null);
       console.debug(`No valid disk cache found for ${site}, will fetch fresh data`);
@@ -295,7 +295,7 @@ class TagCacheManager {
   private async fetchTags(site: string): Promise<void> {
     try {
       let url: string;
-      let headers: HeadersInit = {
+      const headers: HeadersInit = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       };
 

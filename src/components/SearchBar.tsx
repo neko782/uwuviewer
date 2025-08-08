@@ -90,18 +90,6 @@ export default function SearchBar({
     setSearchInput(searchTags);
   }, [searchTags]);
 
-  useEffect(() => {
-    // When site changes, update the search input if it's empty or only contains a rating
-    const trimmedInput = searchInput.trim();
-    const isOnlyRating = trimmedInput === 'rating:safe' || 
-                         trimmedInput === 'rating:general' || 
-                         trimmedInput === '';
-    
-    if (isOnlyRating) {
-      const newDefault = DEFAULT_RATING_BY_SITE[currentSite] ?? '';
-      setSearchInput(newDefault);
-    }
-  }, [currentSite]); // Only run when currentSite changes, not on every searchInput change
 
   useEffect(() => {
     setApiKeyInput(currentApiKey);
@@ -143,9 +131,6 @@ export default function SearchBar({
     }
 
     try {
-      // Include API key for Gelbooru
-      const apiKeyParam = '';
-      
       const response = await fetch(
         `/api/autocomplete?q=${encodeURIComponent(query)}&site=${currentSite}`
       );
@@ -158,15 +143,15 @@ export default function SearchBar({
       setSuggestions([]);
       setShowSuggestions(false);
     }
-  }, [currentSite, currentApiKey]);
+  }, [currentSite]);
 
   const getTagAtCursor = useCallback((input: string, cursorPos: number) => {
     // Find the start of the current tag (after the last space before cursor, or start of string)
-    let tagStart = input.lastIndexOf(' ', cursorPos - 1) + 1;
+    const tagStart = input.lastIndexOf(' ', cursorPos - 1) + 1;
     
     // For autocompletion, we only want to complete up to the cursor position
     // not the entire tag that might extend beyond the cursor
-    let tagEnd = cursorPos;
+    const tagEnd = cursorPos;
     
     const currentTag = input.substring(tagStart, tagEnd);
     return { tag: currentTag, start: tagStart, end: tagEnd };
@@ -207,7 +192,7 @@ export default function SearchBar({
         fetchSuggestions(tag);
       }, delay);
     }
-  }, [fetchSuggestions, getTagAtCursor]);
+  }, [fetchSuggestions, getTagAtCursor, currentSite]);
 
   const applySuggestion = useCallback((suggestion: TagSuggestion) => {
     // Clear any pending debounce timer first

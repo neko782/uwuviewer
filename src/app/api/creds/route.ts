@@ -3,16 +3,6 @@ import { getGlobalCreds, setGlobalCreds, clearGlobalCreds } from '@/lib/globalCr
 
 export const runtime = 'nodejs';
 
-function cookieOptions() {
-  return {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'strict' as const,
-    path: '/',
-    // 30 days
-    maxAge: 30 * 24 * 60 * 60,
-  };
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,12 +24,12 @@ export async function POST(request: NextRequest) {
     res.cookies.delete('e621_api_key');
 
     return res;
-  } catch (e) {
+  } catch {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const creds = await getGlobalCreds();
   const gelbooru = !!creds.gelbooruApiFragment;
   const e621 = !!(creds.e621Login && creds.e621ApiKey);

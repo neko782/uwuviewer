@@ -307,7 +307,7 @@ export default function Home() {
             });
             break; // Disappear silently when finished
           }
-        } catch (e) {
+        } catch {
           // ignore and continue backoff
         }
         // Exponential backoff up to 30s
