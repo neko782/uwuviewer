@@ -81,6 +81,123 @@ export default function FiltersPanel({ currentImageType, onImageTypeChange, curr
           </button>
         </div>
       )}
+      <style jsx>{`
+        .filter-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          padding: 16px;
+          min-width: 280px;
+          z-index: 100;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          animation: dropIn 0.2s ease;
+        }
+
+        @keyframes dropIn {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .filter-section {
+          margin-bottom: 16px;
+        }
+
+        .filter-section:last-child {
+          margin-bottom: 0;
+        }
+
+        .filter-label {
+          display: block;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .filter-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .filter-option {
+          padding: 6px 12px;
+          background: var(--bg-tertiary);
+          border: 1px solid transparent;
+          border-radius: var(--radius-sm);
+          color: var(--text-secondary);
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .filter-option:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .filter-option.active {
+          background: var(--accent);
+          color: white;
+          border-color: var(--accent);
+        }
+
+        .filter-option.active:hover {
+          background: var(--accent-hover);
+          border-color: var(--accent-hover);
+        }
+
+        .api-key-button {
+          padding: 6px 12px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          color: var(--text-secondary);
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+        }
+
+        .api-key-button:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .limit-input {
+          width: 100%;
+          padding: 10px 12px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          color: var(--text-primary);
+          font-size: 13px;
+        }
+        .limit-input:focus {
+          outline: none;
+          border-color: var(--accent-dim);
+          background: var(--bg-secondary);
+        }
+        .limit-input::-webkit-inner-spin-button,
+        .limit-input::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .limit-input[type=number] {
+          -moz-appearance: textfield;
+        }
+      `}</style>
     </div>
   );
 }
