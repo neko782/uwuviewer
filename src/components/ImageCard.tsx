@@ -116,8 +116,6 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
           transition: transform 0.2s ease, box-shadow 0.2s ease;
           width: 100%;
           break-inside: avoid;
-          margin-bottom: 16px;
-          display: inline-block;
         }
 
         .image-card:hover {
