@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
@@ -7,6 +7,84 @@ import ImageCard from '@/components/ImageCard';
 import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
 import { toast } from 'sonner';
+
+// Collapsible spinner used while preparing tags. Implemented as a proper
+// React component (so hooks are safe) and rendered via toast.custom.
+function CollapsiblePrefetchToast({ targetSite }: { targetSite: Site }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      {!collapsed ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 10,
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 12,
+          padding: 14,
+          minWidth: 300,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 9999, background: 'var(--accent)' }} />
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Preparing tags</div>
+            </div>
+            <button
+              onClick={() => setCollapsed(true)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '4px 6px',
+                borderRadius: 6
+              }}
+              aria-label="Hide"
+              title="Hide to small spinner"
+            >
+              Hide
+            </button>
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
+          <div style={{ width: '100%', height: 8, background: 'var(--bg-tertiary)', borderRadius: 9999, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite', borderRadius: 9999 }} />
+          </div>
+          <style jsx>{`
+            @keyframes indeterminate {
+              0% { transform: translateX(-100%); }
+              50% { transform: translateX(50%); }
+              100% { transform: translateX(200%); }
+            }
+          `}</style>
+        </div>
+      ) : (
+        <button
+          disabled
+          aria-busy
+          title={`Downloading tags for ${targetSite}…`}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 9999,
+            padding: '6px 10px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+          }}
+        >
+          <span style={{
+            display: 'inline-block', width: 14, height: 14, borderRadius: '50%',
+            border: '2px solid var(--bg-tertiary)', borderTopColor: 'var(--accent)',
+            animation: 'spin 0.9s linear infinite'
+          }} />
+          <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{targetSite}</span>
+          <style jsx>{`
+            @keyframes spin { to { transform: rotate(360deg); } }
+          `}</style>
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function Home() {
   const [posts, setPosts] = useState<UnifiedPost[]>([]);
@@ -142,6 +220,22 @@ export default function Home() {
   const prefetchingSitesRef = useRef<Set<Site>>(new Set());
   const toastIdsRef = useRef<Map<Site, string | number>>(new Map());
 
+  // Helper: small, clickable toast that dismisses on click
+  const quickToast = useCallback((kind: 'success' | 'error' | 'message', text: string) => {
+    const accent = kind === 'success' ? '#3fb950' : kind === 'error' ? '#f85149' : 'var(--accent)';
+    return toast.custom((id) => (
+      <div onClick={() => toast.dismiss(id)} style={{
+        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+        background: 'var(--bg-secondary)', border: '1px solid var(--border-default)',
+        borderRadius: 12, padding: '10px 12px', minWidth: 220,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+      }}>
+        <div style={{ width: 10, height: 10, borderRadius: 9999, background: accent }} />
+        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{text}</div>
+      </div>
+    ), { duration: 4000 });
+  }, []);
+
   const startTagPrefetch = useCallback(async (targetSite: Site) => {
     if (targetSite !== 'yande.re' && targetSite !== 'konachan.com' && targetSite !== 'rule34.xxx' && targetSite !== 'e621.net') return;
 
@@ -156,39 +250,15 @@ export default function Home() {
 
       // If already fresh and has cache, no need to show long toast
       if (status && status.fresh && status.hasCache && status.size > 0) {
-        toast.success(`${targetSite} tags are up to date (${status.size.toLocaleString()} tags)`);
+        quickToast('success', `${targetSite} tags are up to date (${status.size.toLocaleString()} tags)`);
         return;
       }
 
-      // Create or reuse an indeterminate progress toast with libadwaita-like card styling
+      // Create or reuse a collapsible indeterminate progress toast
       let id = toastIdsRef.current.get(targetSite);
       if (id === undefined) {
-        id = toast.custom(() => (
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 10,
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-default)',
-            borderRadius: '12px',
-            padding: 14,
-            minWidth: 300,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 9999, background: 'var(--accent)' }} />
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Preparing tags</div>
-            </div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
-            <div style={{ width: '100%', height: 8, background: 'var(--bg-tertiary)', borderRadius: 9999, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite', borderRadius: 9999 }} />
-            </div>
-            <style jsx>{`
-              @keyframes indeterminate {
-                0% { transform: translateX(-100%); }
-                50% { transform: translateX(50%); }
-                100% { transform: translateX(200%); }
-              }
-            `}</style>
-          </div>
+        id = toast.custom((tid) => (
+          <CollapsiblePrefetchToast targetSite={targetSite} />
         ), { duration: Infinity });
         toastIdsRef.current.set(targetSite, id);
       }
@@ -202,10 +272,9 @@ export default function Home() {
         });
       }
 
-      // Poll for completion
-      const started = Date.now();
+      // Poll for completion (no time limit; minimized button persists)
       let done = false;
-      while (!done && Date.now() - started < 5 * 60_000) { // up to 5 minutes
+      while (!done) {
         await new Promise(r => setTimeout(r, 2000));
         const res = await fetch(`/api/tags/status?site=${encodeURIComponent(targetSite)}`);
         const st = await res.json();
@@ -213,23 +282,19 @@ export default function Home() {
           done = true;
           if (id !== undefined) toast.dismiss(id);
           toastIdsRef.current.delete(targetSite);
-          toast.success(`Downloaded ${st.size.toLocaleString()} ${targetSite} tags`);
-          break;
+          break; // Disappear silently when finished
         }
-      }
-
-      if (!done) {
-        if (id !== undefined) toast.dismiss(id);
-        toastIdsRef.current.delete(targetSite);
-        toast.message(`Tag download for ${targetSite} is still running in background`);
       }
     } catch (e) {
       console.error('Prefetch failed', e);
-      toast.error('Failed to prefetch tags');
+      const id = toastIdsRef.current.get(targetSite);
+      if (id !== undefined) toast.dismiss(id);
+      toastIdsRef.current.delete(targetSite);
+      quickToast('error', 'Failed to prefetch tags');
     } finally {
       prefetchingSitesRef.current.delete(targetSite);
     }
-  }, []);
+  }, [quickToast]);
 
   const getDownloadSizeLabel = useCallback((targetSite: Site) => {
     if (targetSite === 'rule34.xxx') return 'about 100 MB';
