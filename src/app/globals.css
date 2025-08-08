@@ -63,3 +63,13 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--bg-hover);
 }
+
+/* Sonner toast sizing tweaks to match normal text */
+.toast-title {
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+.toast-description {
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
