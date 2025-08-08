@@ -15,9 +15,10 @@ interface FiltersPanelProps {
   hasE621Creds: boolean;
   showDownloadOption: boolean;
   onDownloadTags: () => void;
+  onOpenSettings: () => void;
 }
 
-export default function FiltersPanel({ currentImageType, onImageTypeChange, currentLimit, onLimitChange, currentSite, onOpenGelbooru, onOpenE621, hasGelbooruCreds, hasE621Creds, showDownloadOption, onDownloadTags }: FiltersPanelProps) {
+export default function FiltersPanel({ currentImageType, onImageTypeChange, currentLimit, onLimitChange, currentSite, onOpenGelbooru, onOpenE621, hasGelbooruCreds, hasE621Creds, showDownloadOption, onDownloadTags, onOpenSettings }: FiltersPanelProps) {
   return (
     <div className="filter-dropdown">
       <div className="filter-section">
@@ -81,6 +82,13 @@ export default function FiltersPanel({ currentImageType, onImageTypeChange, curr
           </button>
         </div>
       )}
+
+      <div className="filter-section">
+        <label className="filter-label">Settings</label>
+        <button type="button" className="api-key-button" onClick={onOpenSettings}>
+          Open Settings
+        </button>
+      </div>
 
       <style jsx>{`
         .filter-dropdown {
