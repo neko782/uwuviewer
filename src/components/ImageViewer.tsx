@@ -130,14 +130,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
     } catch { return ''; }
   })();
 
-  const artistFromTags = (() => {
-    const groups = (tagData?.grouped || {}) as Record<string, string[]>;
-    const arr = groups['Artist'];
-    if (arr && arr.length > 0) return arr.map(t => t.replace(/_/g, ' ')).join(', ');
-    return undefined;
-  })();
-
-  const authorName = (post as any).author || artistFromTags;
+  const uploaderName = (post as any).author as string | undefined;
   const favCount: number | undefined = (post as any).fav_count;
 
   return (
@@ -319,10 +312,10 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
                 </>
               )}
 
-              {authorName && (
+              {uploaderName && (
                 <>
                   <span className="info-label">Uploader</span>
-                  <span className="info-value">{authorName}</span>
+                  <span className="info-value">{uploaderName}</span>
                 </>
               )}
 
