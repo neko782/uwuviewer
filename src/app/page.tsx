@@ -10,83 +10,56 @@ import { toast } from 'sonner';
 
 // Collapsible spinner used while preparing tags. Implemented as a proper
 // React component (so hooks are safe) and rendered via toast.custom.
-function CollapsiblePrefetchToast({ targetSite }: { targetSite: Site }) {
-  const [collapsed, setCollapsed] = useState(false);
+function CollapsiblePrefetchToast({ targetSite, onCollapse }: { targetSite: Site; onCollapse: () => void }) {
   return (
-    <div style={{ position: 'relative', pointerEvents: collapsed ? 'none' as const : 'auto' }}>
-      {!collapsed ? (
-        <div style={{
-          display: 'flex', flexDirection: 'column', gap: 10,
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 12,
-          padding: 14,
-          minWidth: 300,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 9999, background: 'var(--accent)' }} />
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Preparing tags</div>
-            </div>
-            <button
-              onClick={() => setCollapsed(true)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                padding: '4px 6px',
-                borderRadius: 6,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              aria-label="Hide"
-              title="Hide"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                <rect x="2" y="5.5" width="8" height="1" rx="0.5" fill="currentColor" />
-              </svg>
-            </button>
+    <div style={{ position: 'relative' }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 10,
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 12,
+        padding: 14,
+        minWidth: 300,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 9999, background: 'var(--accent)' }} />
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Preparing tags</div>
           </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
-          <div style={{ width: '100%', height: 8, background: 'var(--bg-tertiary)', borderRadius: 9999, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite', borderRadius: 9999 }} />
-          </div>
-          <style jsx>{`
-            @keyframes indeterminate {
-              0% { transform: translateX(-100%); }
-              50% { transform: translateX(50%); }
-              100% { transform: translateX(200%); }
-            }
-          `}</style>
+          <button
+            onClick={onCollapse}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '4px 6px',
+              borderRadius: 6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            aria-label="Hide"
+            title="Hide"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <rect x="2" y="5.5" width="8" height="1" rx="0.5" fill="currentColor" />
+            </svg>
+          </button>
         </div>
-      ) : (
-        <div
-          aria-hidden
-          title={`Downloading tags for ${targetSite}…`}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 9999,
-            padding: '6px 10px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-            pointerEvents: 'none'
-          }}
-        >
-          <span style={{
-            display: 'inline-block', width: 14, height: 14, borderRadius: '50%',
-            border: '2px solid var(--bg-tertiary)', borderTopColor: 'var(--accent)',
-            animation: 'spin 0.9s linear infinite'
-          }} />
-          <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{targetSite}</span>
-          <style jsx>{`
-            @keyframes spin { to { transform: rotate(360deg); } }
-          `}</style>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Downloading tags for {targetSite}…</div>
+        <div style={{ width: '100%', height: 8, background: 'var(--bg-tertiary)', borderRadius: 9999, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ width: '40%', height: '100%', background: 'var(--accent)', animation: 'indeterminate 1.2s ease-in-out infinite', borderRadius: 9999 }} />
         </div>
-      )}
+        <style jsx>{`
+          @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(50%); }
+            100% { transform: translateX(200%); }
+          }
+        `}</style>
+      </div>
     </div>
   );
 }
@@ -224,6 +197,7 @@ export default function Home() {
   // Start tags prefetch for supported sites with a toast
   const prefetchingSitesRef = useRef<Set<Site>>(new Set());
   const toastIdsRef = useRef<Map<Site, string | number>>(new Map());
+  const [minimizedPrefetchSites, setMinimizedPrefetchSites] = useState<Set<Site>>(new Set());
 
   // Helper: small, clickable toast that dismisses on click
   const quickToast = useCallback((kind: 'success' | 'error' | 'message', text: string) => {
@@ -263,7 +237,17 @@ export default function Home() {
       let id = toastIdsRef.current.get(targetSite);
       if (id === undefined) {
         id = toast.custom((tid) => (
-          <CollapsiblePrefetchToast targetSite={targetSite} />
+          <CollapsiblePrefetchToast
+            targetSite={targetSite}
+            onCollapse={() => {
+              setMinimizedPrefetchSites(prev => {
+                const next = new Set(prev);
+                next.add(targetSite);
+                return next;
+              });
+              toast.dismiss(tid);
+            }}
+          />
         ), { duration: Infinity });
         toastIdsRef.current.set(targetSite, id);
       }
@@ -277,7 +261,7 @@ export default function Home() {
         });
       }
 
-      // Poll for completion (no time limit; minimized button persists)
+      // Poll for completion (no time limit; minimized chip persists)
       let done = false;
       while (!done) {
         await new Promise(r => setTimeout(r, 2000));
@@ -287,6 +271,12 @@ export default function Home() {
           done = true;
           if (id !== undefined) toast.dismiss(id);
           toastIdsRef.current.delete(targetSite);
+          setMinimizedPrefetchSites(prev => {
+            if (!prev.size) return prev;
+            const next = new Set(prev);
+            next.delete(targetSite);
+            return next;
+          });
           break; // Disappear silently when finished
         }
       }
@@ -295,6 +285,12 @@ export default function Home() {
       const id = toastIdsRef.current.get(targetSite);
       if (id !== undefined) toast.dismiss(id);
       toastIdsRef.current.delete(targetSite);
+      setMinimizedPrefetchSites(prev => {
+        if (!prev.size) return prev;
+        const next = new Set(prev);
+        next.delete(targetSite);
+        return next;
+      });
       quickToast('error', 'Failed to prefetch tags');
     } finally {
       prefetchingSitesRef.current.delete(targetSite);
@@ -413,6 +409,43 @@ export default function Home() {
 
   return (
     <div className="app-container">
+      {/* Minimized tag-prep spinners: non-interactive overlay in top-right */}
+      {minimizedPrefetchSites.size > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 16,
+            right: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            pointerEvents: 'none',
+            zIndex: 9999,
+          }}
+          aria-hidden
+        >
+          {Array.from(minimizedPrefetchSites).map((s) => (
+            <div
+              key={s}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 9999,
+                padding: '6px 10px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+              }}
+            >
+              <span style={{
+                display: 'inline-block', width: 14, height: 14, borderRadius: '50%',
+                border: '2px solid var(--bg-tertiary)', borderTopColor: 'var(--accent)',
+                animation: 'spin 0.9s linear infinite'
+              }} />
+              <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{s}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <button 
         className={`header-toggle ${headerHidden ? 'floating' : ''}`}
         onClick={() => setHeaderHidden(!headerHidden)}
