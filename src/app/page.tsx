@@ -508,7 +508,6 @@ export default function Home() {
           onImageTypeChange={handleImageTypeChange}
           onApiKeyChange={handleApiKeyChange}
           onE621AuthChange={handleE621AuthChange}
-          onDownloadTags={(s) => { setConsentServer(s, 'accepted'); startTagPrefetch(s); }}
           onLimitChange={handleLimitChange}
           currentSite={site}
           currentPage={page}

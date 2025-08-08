@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ site, consent: value });
     }
     return NextResponse.json({ consents });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to get consent' }, { status: 500 });
   }
 }
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     await setCreds(sid, { ...entry, tagPrefetchConsents: consents });
 
     return res;
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to set consent' }, { status: 500 });
   }
 }
@@ -81,7 +81,7 @@ export async function DELETE(request: NextRequest) {
     await setCreds(sid, { ...entry, tagPrefetchConsents: consents });
 
     return res;
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to clear consent' }, { status: 500 });
   }
 }

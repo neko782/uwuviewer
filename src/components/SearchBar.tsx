@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Site } from '@/lib/api';
 import Image from 'next/image';
-import { SITE_CONFIG, DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch } from '@/lib/constants';
+import { SITE_CONFIG, DEFAULT_RATING_BY_SITE } from '@/lib/constants';
 import Pagination from './Pagination';
 import SuggestionsList from './search/SuggestionsList';
 import ApiKeyModal from './search/ApiKeyModal';
@@ -27,7 +27,7 @@ interface SearchBarProps {
   onImageTypeChange: (imageType: 'preview' | 'sample') => void;
   onApiKeyChange: (apiKey: string) => void;
   onE621AuthChange: (login: string, apiKey: string) => void;
-  onDownloadTags: (site: Site) => void;
+  // onDownloadTags: (site: Site) => void;
   onLimitChange: (limit: number) => void;
   currentSite: Site;
   currentPage: number;
@@ -48,7 +48,7 @@ export default function SearchBar({
   onImageTypeChange,
   onApiKeyChange,
   onE621AuthChange,
-  onDownloadTags,
+  
   onLimitChange,
   currentSite,
   currentPage,
@@ -78,7 +78,6 @@ export default function SearchBar({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [cursorPosition, setCursorPosition] = useState(0);
-  const [showDownloadOption, setShowDownloadOption] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
@@ -114,45 +113,7 @@ export default function SearchBar({
     })();
   }, []);
 
-  // Show manual download option when user previously declined the popup
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const supported = isSupportedForTagPrefetch(currentSite);
-        if (!supported) {
-          if (!cancelled) setShowDownloadOption(false);
-          return;
-        }
-        const res = await fetch(`/api/consent?site=${encodeURIComponent(currentSite)}`);
-        const data = await res.json();
-        const c = data?.consent || null;
-        if (!cancelled) setShowDownloadOption(supported && c === 'declined');
-      } catch {
-        if (!cancelled) setShowDownloadOption(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [currentSite]);
 
-  // React to consent changes from the settings panel without reload
-  useEffect(() => {
-    const handler = (e: any) => {
-      if (!e?.detail) return;
-      if (e.detail.site === currentSite) {
-        const supported = isSupportedForTagPrefetch(currentSite);
-        setShowDownloadOption(supported && e.detail.consent === 'declined');
-      }
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('tag-consent-changed', handler);
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('tag-consent-changed', handler);
-      }
-    };
-  }, [currentSite]);
 
   const fetchSuggestions = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
@@ -441,12 +402,6 @@ export default function SearchBar({
                   onOpenE621={() => setShowE621Modal(true)}
                   hasGelbooruCreds={hasGelbooruCreds}
                   hasE621Creds={hasE621Creds}
-                  showDownloadOption={showDownloadOption}
-                  onDownloadTags={() => {
-                    onDownloadTags(currentSite);
-                    setShowFilters(false);
-                    setShowDownloadOption(false);
-                  }}
                   onOpenSettings={() => {
                     setShowSettings(true);
                     setShowFilters(false);

@@ -13,12 +13,10 @@ interface FiltersPanelProps {
   onOpenE621: () => void;
   hasGelbooruCreds: boolean;
   hasE621Creds: boolean;
-  showDownloadOption: boolean;
-  onDownloadTags: () => void;
   onOpenSettings: () => void;
 }
 
-export default function FiltersPanel({ currentImageType, onImageTypeChange, currentLimit, onLimitChange, currentSite, onOpenGelbooru, onOpenE621, hasGelbooruCreds, hasE621Creds, showDownloadOption, onDownloadTags, onOpenSettings }: FiltersPanelProps) {
+export default function FiltersPanel({ currentImageType, onImageTypeChange, currentLimit, onLimitChange, currentSite, onOpenGelbooru, onOpenE621, hasGelbooruCreds, hasE621Creds, onOpenSettings }: FiltersPanelProps) {
   return (
     <div className="filter-dropdown">
       <div className="filter-section">
