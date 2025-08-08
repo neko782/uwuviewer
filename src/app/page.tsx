@@ -8,6 +8,7 @@ import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
 import { toast } from 'sonner';
 import { DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch, getTagDownloadSizeLabel } from '@/lib/constants';
+import { useRouter, usePathname } from 'next/navigation';
 
 // Collapsible spinner used while preparing tags. Implemented as a proper
 // React component (so hooks are safe) and rendered via toast.custom.
@@ -141,6 +142,86 @@ export default function Home() {
   const postsAbortRef = useRef<AbortController | null>(null);
   const postsRequestIdRef = useRef(0);
 
+  // Router and path helpers for URL state sync
+  const router = useRouter();
+  const pathname = usePathname();
+  const pendingNavRef = useRef<null | { type: 'search'; tags: string }>(null);
+
+  const isValidSite = useCallback((s: string): s is Site => {
+    return Object.prototype.hasOwnProperty.call(DEFAULT_RATING_BY_SITE, s);
+  }, []);
+
+  const defaultTagsFor = useCallback((s: Site): string => {
+    return (DEFAULT_RATING_BY_SITE[s] ?? '').trim();
+  }, []);
+
+  const buildPath = useCallback((s: Site, tags: string, p: number): string => {
+    const def = defaultTagsFor(s);
+    const t = (tags || '').trim();
+    const tagsChanged = t !== def;
+    if (tagsChanged) {
+      let path = `/${s}/search/${encodeURIComponent(t)}`;
+      if (p > 1) path += `/${p}`;
+      return path;
+    }
+    // default tags
+    if (p > 1) return `/${s}/${p}`;
+    return `/${s}`;
+  }, [defaultTagsFor]);
+
+  // Parse the current pathname and update state accordingly
+  useEffect(() => {
+    const raw = pathname || '/';
+    const segs = raw.split('/').filter(Boolean).map((x) => {
+      try { return decodeURIComponent(x); } catch { return x; }
+    });
+    if (segs.length === 0) return; // root -> leave defaults
+
+    const s0 = segs[0];
+    if (!isValidSite(s0)) return; // unknown; ignore
+    const newSite = s0 as Site;
+
+    // posts route: do not change search/page; only ensure site matches, and do nothing else
+    if (segs[1] === 'posts') {
+      if (site !== newSite) {
+        setSite(newSite);
+        // if switching site due to URL, also ensure default tags if current tags are rating-only for previous site
+        const def = defaultTagsFor(newSite);
+        if (searchTags.trim() === '' || searchTags === defaultTagsFor(site)) {
+          setSearchTags(def);
+        }
+      }
+      return;
+    }
+
+    let newTags = defaultTagsFor(newSite);
+    let newPage = 1;
+
+    if (segs[1] === 'search') {
+      if (typeof segs[2] === 'string') newTags = segs[2];
+      if (typeof segs[3] === 'string' && /^\d+$/.test(segs[3])) newPage = Math.max(1, parseInt(segs[3], 10));
+    } else if (typeof segs[1] === 'string' && /^\d+$/.test(segs[1])) {
+      newPage = Math.max(1, parseInt(segs[1], 10));
+    } else {
+      // just /:site
+      newTags = defaultTagsFor(newSite);
+      newPage = 1;
+    }
+
+    // Apply changes if different
+    if (site !== newSite) setSite(newSite);
+    if (searchTags !== newTags) setSearchTags(newTags);
+    if (page !== newPage) {
+      setPage(newPage);
+      setPosts([]);
+      // loadPosts will fire from [site, searchTags] effect, but if those didn't change, trigger load now
+      if (site === newSite && searchTags === newTags) {
+        loadPosts(newPage, true, newTags);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   // Build explicit columns and distribute posts row-first to preserve masonry look but change order
   const [columnCount, setColumnCount] = useState<number>(5);
 
@@ -244,11 +325,10 @@ export default function Home() {
   useEffect(() => {
     apiRef.current = new ImageBoardAPI(site, apiKey, { login: e621Login, apiKey: e621ApiKey });
     setPosts([]);
-    setPage(1);
     setHasMore(true);
     setIsInitialLoad(true);
-    loadPosts(1, true, searchTags);
-  }, [site, searchTags, apiKey, e621Login, e621ApiKey, loadPosts]);
+    loadPosts(page, true, searchTags);
+  }, [site, searchTags, apiKey, e621Login, e621ApiKey, loadPosts, page]);
 
   // Load blocklist from server and listen for changes
   useEffect(() => {
@@ -285,8 +365,9 @@ export default function Home() {
       setPosts([]);
       loadPosts(newPage, true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      try { router.push(buildPath(site, searchTags, newPage)); } catch {}
     }
-  }, [page, loadPosts]);
+  }, [page, loadPosts, router, buildPath, site, searchTags]);
 
   // Start tags prefetch for supported sites with a toast
   const prefetchingSitesRef = useRef<Set<Site>>(new Set());
@@ -524,7 +605,7 @@ export default function Home() {
     }
   }, [startTagPrefetch, getConsentServer]);
 
-  const handleSearch = (tags: string) => {
+  const handleSearch = (tags: string, navigate: boolean = true) => {
     // Only reset if the tags have actually changed
     if (tags !== searchTags) {
       setSearchTags(tags);
@@ -532,30 +613,37 @@ export default function Home() {
       setPage(1);
       setHasMore(true);
       setError(null);
+      if (navigate) {
+        try { router.push(buildPath(site, tags, 1)); } catch {}
+      }
+    } else {
+      if (navigate) {
+        try { router.push(buildPath(site, tags, 1)); } catch {}
+      }
     }
   };
 
   const handleSiteChange = (newSite: Site) => { 
-    // On first switch to supported sites, ask consent to download tags
+    // Determine tags to use for the new site
+    const currentTags = searchTags.trim();
+    const isOnlyRating = currentTags === 'rating:safe' || 
+                         currentTags === 'rating:general' || 
+                         currentTags === '';
+    const newTags = isOnlyRating ? (DEFAULT_RATING_BY_SITE[newSite] ?? '') : searchTags;
+
+    // Update state
     setSite(newSite);
     setPosts([]);
     setPage(1);
     setHasMore(true);
     setError(null);
+    if (isOnlyRating) setSearchTags(newTags);
 
     // Prompt or auto-prefetch based on prior consent
     maybePromptOrAutoPrefetch(newSite);
-    
-    // Update search tags with the new site's default rating if current search is empty or only a rating
-    const currentTags = searchTags.trim();
-    const isOnlyRating = currentTags === 'rating:safe' || 
-                         currentTags === 'rating:general' || 
-                         currentTags === '';
-    
-    if (isOnlyRating) {
-      const defaultRating = DEFAULT_RATING_BY_SITE[newSite] ?? '';
-      setSearchTags(defaultRating);
-    }
+
+    // Navigate to the new URL
+    try { router.push(buildPath(newSite, newTags, 1)); } catch {}
   };
 
 
@@ -704,7 +792,7 @@ export default function Home() {
                   post={post}
                   site={site}
                   imageType={imageType}
-                  onClick={() => setSelectedPost(post)}
+                  onClick={() => { setSelectedPost(post); try { router.push(`/${site}/posts/${post.id}`); } catch {} }}
                 />
               ))}
             </div>
@@ -735,12 +823,20 @@ export default function Home() {
          post={selectedPost}
          site={site}
          apiKey={apiKey}
-         onClose={() => setSelectedPost(null)}
+         onClose={() => {
+           if (pendingNavRef.current?.type === 'search') {
+             const nav = pendingNavRef.current;
+             pendingNavRef.current = null;
+             try { router.push(buildPath(site, nav.tags, 1)); } catch {}
+           } else {
+             try { router.back(); } catch {}
+           }
+           setSelectedPost(null);
+         }}
          onTagClick={(tag) => {
-           setSearchTags(tag);
-           setPosts([]);
-           setPage(1);
-           setHasMore(true);
+           // queue navigation to search after viewer closes, but update state immediately
+           pendingNavRef.current = { type: 'search', tags: tag };
+           handleSearch(tag, false);
          }}
        />
 
