@@ -19,7 +19,7 @@ export default function E621CredentialsModal({ login, apiKey, onChangeLogin, onC
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <h3>e621 Credentials</h3>
         <p className="modal-description">
-          Provide your e621 username and API key (required to view posts with young characters). They are stored in httpOnly cookies.
+          Provide your e621 username and API key (required to view posts with young characters).
         </p>
         {storedLogin && (
           <p className="modal-description">Stored credentials present for user: <strong>{storedLogin}</strong></p>
