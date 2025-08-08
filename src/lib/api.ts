@@ -262,7 +262,6 @@ export class ImageBoardAPI {
 
     const has_children = !!post.relationships?.has_children;
 
-    const author = Array.isArray(post.tags?.artist) && post.tags.artist.length > 0 ? post.tags.artist[0] : undefined;
     const parent_id = (post.relationships && post.relationships.parent_id != null) ? Number(post.relationships.parent_id) : null;
 
     return {
@@ -281,7 +280,6 @@ export class ImageBoardAPI {
       has_children,
       // extras
       created_at: post.created_at,
-      author,
       md5: post.file?.md5,
       file_size: typeof post.file?.size === 'number' ? post.file.size : undefined,
       file_ext: post.file?.ext,

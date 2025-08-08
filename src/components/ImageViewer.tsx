@@ -279,7 +279,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
             </a>
           </div>
 
-          <div className="info-section">
+          <div className="info-section info-details">
             <h3>Information</h3>
             <div className="info-grid">
               <span className="info-label">Site</span>
@@ -321,7 +321,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
 
               {authorName && (
                 <>
-                  <span className="info-label">Artist</span>
+                  <span className="info-label">Uploader</span>
                   <span className="info-value">{authorName}</span>
                 </>
               )}
@@ -468,6 +468,11 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
 
         .info-section {
           margin-bottom: 24px;
+        }
+        .info-details {
+          margin-top: 24px;
+          padding-top: 24px;
+          border-top: 1px solid var(--border-subtle);
         }
 
         .info-section h3 {
