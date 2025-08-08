@@ -114,13 +114,42 @@ export default function SearchBar({
 
   // Show manual download option when user previously declined the popup
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      setShowDownloadOption(false);
-      return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const supported = isSupportedForTagPrefetch(currentSite);
+        if (!supported) {
+          if (!cancelled) setShowDownloadOption(false);
+          return;
+        }
+        const res = await fetch(`/api/consent?site=${encodeURIComponent(currentSite)}`);
+        const data = await res.json();
+        const c = data?.consent || null;
+        if (!cancelled) setShowDownloadOption(supported && c === 'declined');
+      } catch {
+        if (!cancelled) setShowDownloadOption(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentSite]);
+
+  // React to consent changes from the settings panel without reload
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (!e?.detail) return;
+      if (e.detail.site === currentSite) {
+        const supported = isSupportedForTagPrefetch(currentSite);
+        setShowDownloadOption(supported && e.detail.consent === 'declined');
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('tag-consent-changed', handler);
     }
-    const supported = isSupportedForTagPrefetch(currentSite);
-    const consent = localStorage.getItem(`tag_prefetch_consent_${currentSite}`);
-    setShowDownloadOption(supported && consent === 'declined');
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('tag-consent-changed', handler);
+      }
+    };
   }, [currentSite]);
 
   const fetchSuggestions = useCallback(async (query: string) => {

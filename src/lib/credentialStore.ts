@@ -5,6 +5,8 @@ export interface StoredCreds {
   gelbooruApiFragment?: string; // "&api_key=...&user_id=..." or similar
   e621Login?: string;
   e621ApiKey?: string;
+  // Per-session choices for various consents; keys are site hostnames
+  tagPrefetchConsents?: Record<string, 'accepted' | 'declined'>;
 }
 
 interface FileShape {

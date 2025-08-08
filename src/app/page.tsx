@@ -349,19 +349,29 @@ export default function Home() {
     return '';
   }, []);
 
-  const getConsent = (targetSite: Site): 'accepted' | 'declined' | null => {
-    if (typeof window === 'undefined') return null;
-    return (localStorage.getItem(`tag_prefetch_consent_${targetSite}`) as any) || null;
-  };
+  const getConsentServer = useCallback(async (targetSite: Site): Promise<'accepted' | 'declined' | null> => {
+    try {
+      const res = await fetch(`/api/consent?site=${encodeURIComponent(targetSite)}`);
+      const data = await res.json();
+      return (data?.consent as 'accepted' | 'declined' | null) ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
 
-  const setConsent = (targetSite: Site, value: 'accepted' | 'declined') => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(`tag_prefetch_consent_${targetSite}`, value);
-  };
+  const setConsentServer = useCallback(async (targetSite: Site, value: 'accepted' | 'declined'): Promise<void> => {
+    try {
+      await fetch('/api/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site: targetSite, value }),
+      });
+    } catch {}
+  }, []);
 
-  const maybePromptOrAutoPrefetch = useCallback((targetSite: Site) => {
+  const maybePromptOrAutoPrefetch = useCallback(async (targetSite: Site) => {
     if (!isSupportedForTagPrefetch(targetSite)) return;
-    const c = getConsent(targetSite);
+    const c = await getConsentServer(targetSite);
     if (c === 'accepted') {
       startTagPrefetch(targetSite);
       return;
@@ -369,7 +379,7 @@ export default function Home() {
     if (c === null) {
       setTagPromptSite(targetSite);
     }
-  }, [startTagPrefetch]);
+  }, [startTagPrefetch, getConsentServer]);
 
   const handleSearch = (tags: string) => {
     // Only reset if the tags have actually changed
@@ -503,7 +513,7 @@ export default function Home() {
           onImageTypeChange={handleImageTypeChange}
           onApiKeyChange={handleApiKeyChange}
           onE621AuthChange={handleE621AuthChange}
-          onDownloadTags={(s) => { setConsent(s, 'accepted'); startTagPrefetch(s); }}
+          onDownloadTags={(s) => { setConsentServer(s, 'accepted'); startTagPrefetch(s); }}
           onLimitChange={handleLimitChange}
           currentSite={site}
           currentPage={page}
@@ -591,10 +601,9 @@ export default function Home() {
                  className="modal-button save"
                  onClick={() => {
                    const s = tagPromptSite as Site;
-                   setConsent(s, 'accepted');
-                   setTagPromptSite(null);
-                   startTagPrefetch(s);
-                 }}
+                    setConsentServer(s, 'accepted');
+                    setTagPromptSite(null);
+                    startTagPrefetch(s);                 }}
                >
                  Download tags
                </button>
@@ -602,9 +611,8 @@ export default function Home() {
                  className="modal-button cancel"
                  onClick={() => {
                    const s = tagPromptSite as Site;
-                   setConsent(s, 'declined');
-                   setTagPromptSite(null);
-                 }}
+                    setConsentServer(s, 'declined');
+                    setTagPromptSite(null);                 }}
                >
                  Not now
                </button>
