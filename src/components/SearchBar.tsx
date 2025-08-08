@@ -80,6 +80,7 @@ export default function SearchBar({
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const mobileFilterRef = useRef<HTMLDivElement>(null);
   const siteDropdownRef = useRef<HTMLDivElement>(null);
   const mobileSiteDropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -252,15 +253,18 @@ export default function SearchBar({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const outsideDesktopFilter = !filterRef.current || !filterRef.current.contains(target);
+      const outsideMobileFilter = !mobileFilterRef.current || !mobileFilterRef.current.contains(target);
+      if (outsideDesktopFilter && outsideMobileFilter) {
         setShowFilters(false);
       }
-      if (siteDropdownRef.current && !siteDropdownRef.current.contains(event.target as Node) &&
-          mobileSiteDropdownRef.current && !mobileSiteDropdownRef.current.contains(event.target as Node)) {
+      if (siteDropdownRef.current && !siteDropdownRef.current.contains(target) &&
+          mobileSiteDropdownRef.current && !mobileSiteDropdownRef.current.contains(target)) {
         setShowSiteDropdown(false);
       }
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
-          searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(target) &&
+          searchInputRef.current && !searchInputRef.current.contains(target)) {
         setShowSuggestions(false);
       }
     };
@@ -377,7 +381,7 @@ export default function SearchBar({
           </svg>
         </button>
 
-        <div className="filter-container" ref={filterRef}>
+        <div className="filter-container desktop-only" ref={filterRef}>
           <button
             type="button"
             className="filter-button"
@@ -410,6 +414,7 @@ export default function SearchBar({
               )}
         </div>
 
+
       </form>
       
       <div className="desktop-only">
@@ -422,8 +427,40 @@ export default function SearchBar({
       </div>
       </div>
 
-      <div className="bottom-row mobile-only">
-        <div className="site-selector mobile-only" ref={mobileSiteDropdownRef}>
+      {/* Mobile floating filters (hamburger) in top-right */}
+      <div className="mobile-filter-fab mobile-only" ref={mobileFilterRef}>
+        <button
+          type="button"
+          className="mobile-filter-button"
+          onClick={() => setShowFilters(!showFilters)}
+          title="Filters"
+          aria-label="Open filters"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M3 4h18M3 12h18M3 20h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+        {showFilters && (
+          <FiltersPanel
+            currentImageType={currentImageType}
+            onImageTypeChange={onImageTypeChange}
+            currentLimit={currentLimit}
+            onLimitChange={onLimitChange}
+            currentSite={currentSite}
+            onOpenGelbooru={() => setShowApiKeyModal(true)}
+            onOpenE621={() => setShowE621Modal(true)}
+            hasGelbooruCreds={hasGelbooruCreds}
+            hasE621Creds={hasE621Creds}
+            onOpenSettings={() => {
+              setShowSettings(true);
+              setShowFilters(false);
+            }}
+          />
+        )}
+      </div>
+
+       <div className="bottom-row mobile-only">
+         <div className="site-selector mobile-only" ref={mobileSiteDropdownRef}>
           <button
             type="button"
             className="site-selector-button"
@@ -501,6 +538,33 @@ export default function SearchBar({
 
         .bottom-row {
           display: none;
+        }
+
+        .mobile-filter-fab {
+          position: fixed;
+          top: 16px;
+          right: 16px;
+          z-index: 101;
+        }
+
+        .mobile-filter-button {
+          width: 40px;
+          height: 40px;
+          border-radius: var(--radius-sm);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-subtle);
+          color: var(--text-primary);
+          font-size: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .mobile-filter-button:hover {
+          background: var(--bg-tertiary);
+          transform: scale(1.05);
         }
 
         .search-form {
