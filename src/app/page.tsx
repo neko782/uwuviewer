@@ -477,35 +477,33 @@ export default function Home() {
         }
 
         .gallery-masonry {
-          display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 16px;
-          align-items: start;
+          column-count: 5;
+          column-gap: 16px;
           margin-bottom: 48px;
         }
         
         @media (max-width: 1400px) {
           .gallery-masonry {
-            grid-template-columns: repeat(4, 1fr);
+            column-count: 4;
           }
         }
         
         @media (max-width: 1024px) {
           .gallery-masonry {
-            grid-template-columns: repeat(3, 1fr);
+            column-count: 3;
           }
         }
         
         @media (max-width: 768px) {
           .gallery-masonry {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            column-count: 2;
+            column-gap: 12px;
           }
         }
         
         @media (max-width: 480px) {
           .gallery-masonry {
-            grid-template-columns: 1fr;
+            column-count: 1;
           }
         }
 
