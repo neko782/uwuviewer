@@ -384,8 +384,8 @@ class TagCacheManager {
             const name = parts[1];
             const category = parseInt(parts[2], 10) || 0;
             const count = parseInt(parts[3], 10) || 0;
-            // Skip empty names
-            if (!name) continue;
+            // Skip empty names and zero-count tags
+            if (!name || count <= 0) continue;
             tagMap.set(name, { id, name, count, type: category, ambiguous: false });
           }
           success = true;
@@ -479,6 +479,7 @@ class TagCacheManager {
           const tagName = String(attrs.name || '');
           if (!tagName) return;
           const count = parseInt(String(attrs.count || '0'), 10) || 0;
+          if (count <= 0) return;
           let typeNum: number;
           const typeAttr = String(attrs.type ?? '0');
           if (/^\d+$/.test(typeAttr)) {
@@ -544,6 +545,7 @@ class TagCacheManager {
     const lowerQuery = query.toLowerCase();
     const results: Tag[] = [];
     for (const [name, tag] of cache.tags) {
+      if (tag.count <= 0) continue;
       if (name.toLowerCase().startsWith(lowerQuery)) {
         results.push(tag);
       }
@@ -570,7 +572,7 @@ class TagCacheManager {
       if (!alias || !consequent) continue;
       if (!alias.toLowerCase().startsWith(lowerQuery)) continue;
       const target = cache.tags.get(consequent);
-      if (target) {
+      if (target && target.count > 0) {
         out.push({ alias, target });
       }
     }
@@ -602,6 +604,7 @@ class TagCacheManager {
     
     // Search through ALL cached tags that match
     for (const [name, tag] of cache.tags) {
+      if (tag.count <= 0) continue;
       if (name.toLowerCase().startsWith(lowerQuery)) {
         results.push(tag);
       }

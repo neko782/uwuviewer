@@ -215,13 +215,15 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
       const tags = await fetchGelbooruSuggestions(query, apiKey);
       
       // Format the response with colors and counts
-      const suggestions = tags.map(tag => ({
-        name: tag.name,
-        value: tag.name,
-        count: tag.count,
-        type: tag.type,
-        color: GELBOORU_TAG_COLORS[tag.type] || '#888888',
-      }));
+      const suggestions = tags
+        .filter(tag => tag.count > 0)
+        .map(tag => ({
+          name: tag.name,
+          value: tag.name,
+          count: tag.count,
+          type: tag.type,
+          color: GELBOORU_TAG_COLORS[tag.type] || '#888888',
+        }));
       
       return NextResponse.json({ suggestions });
     }
@@ -275,18 +277,23 @@ async function fetchRule34Suggestions(query: string): Promise<Array<{ name: stri
       const aliasSuggestions = aliasPairs.map(({ alias, target }) => ({
         name: `${alias} → ${target.name}`,
         value: target.name,
+        alias,
         count: target.count,
         type: target.type,
         color: E621_TAG_COLORS[target.type] || '#888888',
       }));
-      // Merge and sort: exact matches first (alias or tag), then by count
+      // Merge and sort: prioritize exact alias matches, then exact tag matches, then by count
       const lowerQuery = query.toLowerCase();
       const merged = [...aliasSuggestions, ...baseSuggestions];
-      merged.sort((a, b) => {
-        const aExact = a.value.toLowerCase() === lowerQuery || a.name.toLowerCase() === lowerQuery;
-        const bExact = b.value.toLowerCase() === lowerQuery || b.name.toLowerCase() === lowerQuery;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
+      merged.sort((a: any, b: any) => {
+        const aAliasExact = (a.alias ? String(a.alias).toLowerCase() : '') === lowerQuery;
+        const bAliasExact = (b.alias ? String(b.alias).toLowerCase() : '') === lowerQuery;
+        if (aAliasExact && !bAliasExact) return -1;
+        if (!aAliasExact && bAliasExact) return 1;
+        const aValueExact = a.value.toLowerCase() === lowerQuery;
+        const bValueExact = b.value.toLowerCase() === lowerQuery;
+        if (aValueExact && !bValueExact) return -1;
+        if (!aValueExact && bValueExact) return 1;
         return b.count - a.count;
       });
       // Deduplicate by name to avoid duplicates
