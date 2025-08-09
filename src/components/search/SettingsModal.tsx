@@ -205,14 +205,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               type="number"
               min={1}
               step={1}
-              value={postsPerPage}
-              onChange={(e) => {
-                const v = Math.max(1, Math.floor(parseInt(e.target.value || '0', 10)));
-                setPostsPerPage(v);
-                saveSetting({ postsPerPage: v }, { postsPerPage: v });
-              }}
-              className="blocklist-input"
-              style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
+               value={postsPerPage}
+               onChange={(e) => {
+                 const v = Math.max(1, Math.floor(parseInt(e.target.value || '0', 10)));
+                 setPostsPerPage(v);
+                 saveSetting({ postsPerPage: v }, { postsPerPage: v });
+               }}
+               className="posts-input"              style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
             />
           </div>
 
@@ -368,6 +367,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             border-right: none;
             margin: 24px;
             border-radius: var(--radius-lg);
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 0 0 1px var(--border-default) inset;
@@ -382,6 +382,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             background: var(--bg-tertiary);
             border-bottom: 1px solid var(--border-default);
             z-index: 1;
+            border-top-left-radius: var(--radius-lg);
+            border-top-right-radius: var(--radius-lg);
           }
           .settings-title {
             font-size: 18px;
@@ -391,16 +393,18 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           .settings-close {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            background: var(--bg-tertiary);
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            background: var(--bg-hover);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-sm);
             color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.2s ease;
           }
-          .settings-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+          .settings-close:hover { background: var(--bg-active); color: var(--text-primary); }
           .settings-close-text { font-size: 13px; }
           .settings-content {
             padding: 20px;
@@ -481,6 +485,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           }
           .settings-pill:hover { background: var(--bg-hover); color: var(--text-primary); }
           .settings-pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+          .posts-input::-webkit-outer-spin-button,
+          .posts-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+          .posts-input[type='number'] { -moz-appearance: textfield; }
         `}</style>
       </div>
 
