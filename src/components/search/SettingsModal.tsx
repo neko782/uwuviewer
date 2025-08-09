@@ -22,7 +22,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [savingSites, setSavingSites] = useState<Set<Site>>(new Set());
   const [blocklist, setBlocklist] = useState('');
   const [imageType, setImageType] = useState<'preview' | 'sample'>('preview');
-  const [postsPerPage, setPostsPerPage] = useState<number>(100);
+  const [postsPerPage, setPostsPerPage] = useState<string>('100');
   const [hasGelbooruCreds, setHasGelbooruCreds] = useState(false);
   const [hasE621Creds, setHasE621Creds] = useState(false);
   const [openApi, setOpenApi] = useState(false); // api key dropdown
@@ -45,7 +45,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         const v = (data?.blocklist || '').trim();
         if (!cancelled) setBlocklist(v);
         if (!cancelled) setImageType(data?.imageType === 'sample' ? 'sample' : 'preview');
-        if (!cancelled) setPostsPerPage(typeof data?.postsPerPage === 'number' && data.postsPerPage > 0 ? Math.floor(data.postsPerPage) : 100);
+        if (!cancelled) setPostsPerPage(typeof data?.postsPerPage === 'number' && data.postsPerPage > 0 ? String(Math.floor(data.postsPerPage)) : '100');
       } catch {}
       try {
         const res2 = await fetch('/api/creds');
@@ -201,15 +201,21 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Posts per page</div>
             <input
-              type="number"
-              min={1}
-              step={1}
+              type="text"
                value={postsPerPage}
-               onChange={(e) => {
-                 const v = Math.max(1, Math.floor(parseInt(e.target.value || '0', 10)));
-                 setPostsPerPage(v);
-                 saveSetting({ postsPerPage: v }, { postsPerPage: v });
+               onChange={(e) => { setPostsPerPage(e.target.value); }}
+               onBlur={() => {
+                 const n = Math.max(1, Math.floor(Number(postsPerPage)));
+                 if (Number.isFinite(n)) {
+                   const s = String(n);
+                   setPostsPerPage(s);
+                   saveSetting({ postsPerPage: n }, { postsPerPage: n });
+                 } else {
+                   setPostsPerPage('1');
+                   saveSetting({ postsPerPage: 1 }, { postsPerPage: 1 });
+                 }
                }}
+               onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
                className="posts-input"              style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
             />
           </div>
@@ -320,26 +326,21 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             <input
               type="text"
               value={blocklist}
-              onChange={(e) => {
-                const v = e.target.value;
-                setBlocklist(v);
-                if (saveTimerRef.current) {
-                  clearTimeout(saveTimerRef.current);
-                  saveTimerRef.current = null;
-                }
-                saveTimerRef.current = setTimeout(async () => {
-                  try {
-                    await fetch('/api/settings', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ blocklist: v })
-                    });
-                    if (typeof window !== 'undefined') {
-                      window.dispatchEvent(new CustomEvent('blocklist-changed', { detail: { blocklist: v } }));
-                    }
-                  } catch {}
-                }, 2000);
+              onChange={(e) => { setBlocklist(e.target.value); }}
+              onBlur={async () => {
+                const v = blocklist;
+                try {
+                  await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ blocklist: v })
+                  });
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('blocklist-changed', { detail: { blocklist: v } }));
+                  }
+                } catch {}
               }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
               placeholder="space-separated tags to always exclude"
               className="blocklist-input"
               style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}

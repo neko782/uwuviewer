@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Site } from '@/lib/api';
 
 interface FiltersPanelProps {
@@ -17,6 +17,8 @@ interface FiltersPanelProps {
 }
 
 export default function FiltersPanel({ currentImageType, onImageTypeChange, currentLimit, onLimitChange, currentSite, onOpenGelbooru, onOpenE621, hasGelbooruCreds, hasE621Creds, onOpenSettings }: FiltersPanelProps) {
+  const [limitInput, setLimitInput] = useState<string>(String(currentLimit));
+  useEffect(() => { setLimitInput(String(currentLimit)); }, [currentLimit]);
   return (
     <div className="filter-dropdown">
       <div className="filter-section">
@@ -42,14 +44,20 @@ export default function FiltersPanel({ currentImageType, onImageTypeChange, curr
       <div className="filter-section">
         <label className="filter-label">Posts per page</label>
         <input
-          type="number"
-          min={1}
-          step={1}
-          value={currentLimit}
-          onChange={(e) => {
-            const v = parseInt(e.target.value || '0', 10);
-            if (!Number.isNaN(v) && v > 0) onLimitChange(v);
+          type="text"
+          value={limitInput}
+          onChange={(e) => setLimitInput(e.target.value)}
+          onBlur={() => {
+            const n = Math.max(1, Math.floor(Number(limitInput)));
+            if (Number.isFinite(n)) {
+              const s = String(n);
+              setLimitInput(s);
+              if (n !== currentLimit) onLimitChange(n);
+            } else {
+              setLimitInput(String(currentLimit));
+            }
           }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
           className="limit-input"
         />
       </div>
