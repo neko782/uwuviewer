@@ -42,3 +42,7 @@ next-env.d.ts
 
 # data cache
 /data/
+
+# personal files
+scratch.md
+CLAUDE.md

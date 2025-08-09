@@ -6,8 +6,10 @@ import { ImageBoardAPI, UnifiedPost, Site } from '@/lib/api';
 import ImageCard from '@/components/ImageCard';
 import ImageViewer from '@/components/ImageViewer';
 import SearchBar from '@/components/SearchBar';
+import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 import { toast } from 'sonner';
 import { DEFAULT_RATING_BY_SITE, isSupportedForTagPrefetch, getTagDownloadSizeLabel } from '@/lib/constants';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 // We avoid Next's router for URL updates to prevent client navigations
 
 // Collapsible spinner used while preparing tags. Implemented as a proper
@@ -108,6 +110,7 @@ function CollapsiblePrefetchToast({ targetSite, onCollapse, onCancel }: { target
 }
 
 export default function Home() {
+  const galleryRef = useRef<HTMLDivElement>(null);
   const [posts, setPosts] = useState<UnifiedPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +128,9 @@ export default function Home() {
   const [e621ApiKey, setE621ApiKey] = useState<string>('');
   const [tagPromptSite, setTagPromptSite] = useState<Site | null>(null);
   const [blocklist, setBlocklist] = useState<string>('');
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   // Track mobile viewport to adjust minimized capsule position
   const [isMobile, setIsMobile] = useState(false);
@@ -348,6 +354,122 @@ export default function Home() {
     setIsInitialLoad(true);
     loadPosts(page, true, searchTags);
   }, [site, searchTags, apiKey, e621Login, e621ApiKey, loadPosts, page]);
+
+  // Gallery keyboard navigation with proper masonry layout handling
+  const handleGalleryNavigation = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    if (selectedPost) return; // Don't navigate gallery when viewer is open
+    
+    const totalPosts = posts.length;
+    if (totalPosts === 0) return;
+    
+    // If no item is selected yet, start from the first item
+    let currentIndex = selectedIndex;
+    if (currentIndex === -1) {
+      currentIndex = 0;
+      setSelectedIndex(0);
+      return;
+    }
+    
+    let newIndex = currentIndex;
+    
+    // For masonry layout, we need to calculate position based on how items are distributed
+    // Items are distributed round-robin: post 0 -> col 0, post 1 -> col 1, etc.
+    const currentCol = currentIndex % columnCount;
+    const currentRow = Math.floor(currentIndex / columnCount);
+    
+    if (direction === 'right') {
+      // Move to next column, same row
+      if (currentCol < columnCount - 1) {
+        // Check if there's an item in the next column at this row
+        const nextIndex = currentRow * columnCount + (currentCol + 1);
+        if (nextIndex < totalPosts) {
+          newIndex = nextIndex;
+        }
+      }
+    } else if (direction === 'left') {
+      // Move to previous column, same row
+      if (currentCol > 0) {
+        const prevIndex = currentRow * columnCount + (currentCol - 1);
+        if (prevIndex >= 0) {
+          newIndex = prevIndex;
+        }
+      }
+    } else if (direction === 'down') {
+      // Move to same column, next row
+      const nextIndex = (currentRow + 1) * columnCount + currentCol;
+      if (nextIndex < totalPosts) {
+        newIndex = nextIndex;
+      }
+    } else if (direction === 'up') {
+      // Move to same column, previous row
+      if (currentRow > 0) {
+        const prevIndex = (currentRow - 1) * columnCount + currentCol;
+        newIndex = prevIndex;
+      }
+    }
+    
+    if (newIndex !== selectedIndex && newIndex >= 0 && newIndex < totalPosts) {
+      setSelectedIndex(newIndex);
+      
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        // Find the actual element with the selected class
+        const selectedElement = document.querySelector('.image-card-wrapper.selected');
+        if (selectedElement) {
+          // Only scroll if element is not fully visible
+          const rect = selectedElement.getBoundingClientRect();
+          const isFullyVisible = (
+            rect.top >= 100 && // Account for header
+            rect.bottom <= window.innerHeight &&
+            rect.left >= 0 &&
+            rect.right <= window.innerWidth
+          );
+          
+          if (!isFullyVisible) {
+            selectedElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'nearest',
+              inline: 'nearest'
+            });
+          }
+        }
+      });
+    }
+  }, [selectedIndex, posts, columnCount, selectedPost]);
+
+  const handleOpenSelected = useCallback(() => {
+    if (selectedIndex >= 0 && selectedIndex < posts.length && !selectedPost) {
+      const post = posts[selectedIndex];
+      if (typeof window !== 'undefined') {
+        prevPathRef.current = getPathname();
+        try { setUrl(`/${site}/posts/${post.id}`, 'push'); } catch {}
+      }
+      setSelectedPost(post);
+    }
+  }, [selectedIndex, posts, selectedPost, site, getPathname, setUrl]);
+
+  const handleFocusSearch = useCallback(() => {
+    // Focus on search input - you'll need to pass a ref from SearchBar
+    const searchInput = document.querySelector('input[type="search"], input[placeholder*="Search"]') as HTMLInputElement;
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+    }
+  }, []);
+
+  const handleToggleHeader = useCallback(() => {
+    setHeaderHidden(prev => !prev);
+  }, []);
+
+  const handleToggleSettings = useCallback(() => {
+    // Trigger settings modal - you'll need to pass this to SearchBar
+    const settingsButton = document.querySelector('[aria-label*="Settings"]') as HTMLButtonElement;
+    if (settingsButton) {
+      settingsButton.click();
+    }
+  }, []);
+
+  // Keyboard shortcuts will be setup after handleSiteChange is defined
 
   // Load blocklist from server and listen for changes
   useEffect(() => {
@@ -680,7 +802,7 @@ export default function Home() {
     }
   };
 
-  const handleSiteChange = (newSite: Site) => { 
+  const handleSiteChange = useCallback((newSite: Site) => { 
     // Determine tags to use for the new site
     const currentTags = searchTags.trim();
     const isOnlyRating = currentTags === 'rating:safe' || 
@@ -701,7 +823,42 @@ export default function Home() {
 
     // Navigate to the new URL
     try { setUrl(buildPath(newSite, newTags, 1), 'push'); } catch {}
-  };
+  }, [searchTags, setUrl, buildPath, maybePromptOrAutoPrefetch]);
+
+  const handleSiteSwitch = useCallback((num: number) => {
+    const sites: Site[] = ['yande.re', 'konachan.com', 'gelbooru.com', 'rule34.xxx', 'e621.net'];
+    if (num >= 1 && num <= sites.length) {
+      handleSiteChange(sites[num - 1]);
+    }
+  }, [handleSiteChange]);
+
+  // Setup global keyboard shortcuts
+  useKeyboardShortcuts([
+    // Gallery navigation
+    { key: 'ArrowLeft', handler: () => handleGalleryNavigation('left'), enabled: !selectedPost },
+    { key: 'ArrowRight', handler: () => handleGalleryNavigation('right'), enabled: !selectedPost },
+    { key: 'ArrowUp', handler: () => handleGalleryNavigation('up'), enabled: !selectedPost },
+    { key: 'ArrowDown', handler: () => handleGalleryNavigation('down'), enabled: !selectedPost },
+    { key: 'Enter', handler: handleOpenSelected, enabled: !selectedPost && selectedIndex >= 0 },
+    { key: 'Home', handler: () => setSelectedIndex(0), enabled: !selectedPost && posts.length > 0 },
+    { key: 'End', handler: () => setSelectedIndex(posts.length - 1), enabled: !selectedPost && posts.length > 0 },
+    { key: 'PageUp', handler: () => handlePageChange(Math.max(1, page - 1)), enabled: !selectedPost && page > 1 },
+    { key: 'PageDown', handler: () => handlePageChange(page + 1), enabled: !selectedPost && hasMore },
+    
+    // Global shortcuts
+    { key: '/', handler: handleFocusSearch, preventDefault: true },
+    { key: 'k', ctrl: true, handler: handleFocusSearch, preventDefault: true },
+    { key: 'h', handler: handleToggleHeader },
+    { key: 's', handler: handleToggleSettings },
+    { key: '?', shift: true, handler: () => setShowShortcuts(true) },
+    
+    // Site switching
+    { key: '1', handler: () => handleSiteSwitch(1) },
+    { key: '2', handler: () => handleSiteSwitch(2) },
+    { key: '3', handler: () => handleSiteSwitch(3) },
+    { key: '4', handler: () => handleSiteSwitch(4) },
+    { key: '5', handler: () => handleSiteSwitch(5) },
+  ]);
 
 
 
@@ -751,6 +908,18 @@ export default function Home() {
 
   return (
     <div className="app-container">
+      {/* Keyboard shortcuts hint - compact button */}
+      {!showShortcuts && !selectedPost && (
+        <button
+          className="keyboard-hint-compact"
+          onClick={() => setShowShortcuts(true)}
+          title="Keyboard shortcuts (Press ?)"
+          aria-label="View keyboard shortcuts"
+        >
+          <span>?</span>
+        </button>
+      )}
+
       {/* Minimized tag-prep spinners: clickable overlay in top-right to reopen the toast */}
       {minimizedPrefetchSites.size > 0 && (
         <div
@@ -840,18 +1009,34 @@ export default function Home() {
           </div>
         )}
 
-        <div className="gallery-masonry">
+        <div className="gallery-masonry" ref={galleryRef}>
           {columns.map((col, cIdx) => (
             <div className="masonry-col" key={cIdx}>
-              {col.map((post) => (
-                <ImageCard
-                  key={post.id}
-                  post={post}
-                  site={site}
-                  imageType={imageType}
-                  onClick={() => { if (typeof window !== 'undefined') { prevPathRef.current = getPathname(); try { setUrl(`/${site}/posts/${post.id}`, 'push'); } catch {} } setSelectedPost(post); }}
-                />
-              ))}
+              {col.map((post, pIdx) => {
+                // Find the actual index of this post in the original posts array
+                const actualIndex = posts.findIndex(p => p.id === post.id);
+                return (
+                  <div
+                    key={post.id}
+                    className={`image-card-wrapper ${selectedIndex === actualIndex ? 'selected' : ''}`}
+                    data-index={actualIndex}
+                  >
+                    <ImageCard
+                      post={post}
+                      site={site}
+                      imageType={imageType}
+                      onClick={() => { 
+                        if (typeof window !== 'undefined') { 
+                          prevPathRef.current = getPathname(); 
+                          try { setUrl(`/${site}/posts/${post.id}`, 'push'); } catch {} 
+                        } 
+                        setSelectedPost(post);
+                        setSelectedIndex(actualIndex);
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -887,12 +1072,32 @@ export default function Home() {
               try { setUrl(buildPath(site, nav.tags, 1), 'replace'); } catch {}           } else {
               try { setUrl(prevPathRef.current || buildPath(site, searchTags, page), 'replace'); } catch {}           }
            setSelectedPost(null);
+           setSelectedIndex(-1);
          }}
          onTagClick={(tag) => {
            // queue navigation to search after viewer closes, but update state immediately
            pendingNavRef.current = { type: 'search', tags: tag };
            handleSearch(tag, false);
          }}
+         onNavigate={(direction) => {
+           const currentIdx = posts.findIndex(p => p.id === selectedPost?.id);
+           if (currentIdx === -1) return;
+           
+           const newIdx = direction === 'next' ? currentIdx + 1 : currentIdx - 1;
+           if (newIdx >= 0 && newIdx < posts.length) {
+             const newPost = posts[newIdx];
+             setSelectedPost(newPost);
+             setSelectedIndex(newIdx);
+             try { setUrl(`/${site}/posts/${newPost.id}`, 'replace'); } catch {}
+           }
+         }}
+         hasPrevious={selectedPost ? posts.findIndex(p => p.id === selectedPost.id) > 0 : false}
+         hasNext={selectedPost ? posts.findIndex(p => p.id === selectedPost.id) < posts.length - 1 : false}
+       />
+
+       <KeyboardShortcutsModal 
+         isOpen={showShortcuts} 
+         onClose={() => setShowShortcuts(false)} 
        />
 
        {tagPromptSite && typeof document !== 'undefined' && ReactDOM.createPortal(
@@ -1159,6 +1364,129 @@ export default function Home() {
         .modal-button.cancel:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
+        }
+
+        .image-card-wrapper {
+          position: relative;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transform-origin: center;
+        }
+
+        .image-card-wrapper.selected {
+          transform: scale(1.05) translateZ(0);
+          z-index: 10;
+        }
+
+        .image-card-wrapper.selected::before {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border: 3px solid var(--accent);
+          border-radius: calc(var(--radius-sm) + 4px);
+          pointer-events: none;
+          z-index: 1;
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .image-card-wrapper.selected::after {
+          content: '';
+          position: absolute;
+          inset: -8px;
+          background: radial-gradient(circle at center, var(--accent), transparent);
+          opacity: 0.2;
+          border-radius: calc(var(--radius-sm) + 8px);
+          pointer-events: none;
+          z-index: -1;
+          animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.02);
+          }
+        }
+
+        @keyframes glow {
+          0%, 100% {
+            opacity: 0.2;
+          }
+          50% {
+            opacity: 0.3;
+          }
+        }
+
+        .keyboard-hint-compact {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          width: 42px;
+          height: 42px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-default);
+          border-radius: 50%;
+          color: var(--text-secondary);
+          font-size: 18px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 50;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+          animation: slideInRight 0.5s ease-out, subtlePulse 3s ease-in-out 1s 2;
+        }
+
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes subtlePulse {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.08);
+          }
+        }
+
+        .keyboard-hint-compact:hover {
+          transform: translateY(-2px) scale(1.05);
+          background: var(--accent);
+          color: white;
+          border-color: var(--accent);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .keyboard-hint-compact:active {
+          transform: translateY(0) scale(0.98);
+        }
+
+        .keyboard-hint-compact span {
+          font-family: var(--font-mono, monospace);
+          line-height: 1;
+        }
+
+        @media (max-width: 768px) {
+          .keyboard-hint-compact {
+            bottom: 80px;
+            right: 16px;
+            width: 38px;
+            height: 38px;
+            font-size: 16px;
+          }
         }
       `}</style>
     </div>

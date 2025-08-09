@@ -74,6 +74,11 @@ body {
   line-height: 1.4 !important;
 }
 
+/* Ensure smooth scrolling for keyboard navigation */
+html {
+  scroll-behavior: smooth;
+}
+
 /* Global modal styles used across the app */
 .modal-overlay {
   position: fixed;

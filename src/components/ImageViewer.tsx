@@ -3,7 +3,8 @@
 import { UnifiedPost, Site } from '@/lib/api';
 import { proxyImageUrl } from '@/lib/imageProxy';
 import { getRatingLabel } from '@/lib/constants';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 interface ImageViewerProps {
   post: UnifiedPost | null;
@@ -11,6 +12,9 @@ interface ImageViewerProps {
   apiKey?: string;
   onClose: () => void;
   onTagClick?: (tag: string) => void;
+  onNavigate?: (direction: 'prev' | 'next') => void;
+  hasPrevious?: boolean;
+  hasNext?: boolean;
 }
 
 interface TagInfo {
@@ -24,17 +28,100 @@ interface TagData {
   grouped: Record<string, string[]>;
 }
 
-export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }: ImageViewerProps) {
+export default function ImageViewer({ 
+  post, 
+  site, 
+  apiKey, 
+  onClose, 
+  onTagClick,
+  onNavigate,
+  hasPrevious = false,
+  hasNext = false
+}: ImageViewerProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [tagData, setTagData] = useState<TagData>({ tags: {}, grouped: {} });
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const mediaRef = useRef<HTMLImageElement | HTMLVideoElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard navigation handlers
+  const handlePrevious = useCallback(() => {
+    if (onNavigate && hasPrevious) {
+      onNavigate('prev');
+    }
+  }, [onNavigate, hasPrevious]);
+
+  const handleNext = useCallback(() => {
+    if (onNavigate && hasNext) {
+      onNavigate('next');
+    }
+  }, [onNavigate, hasNext]);
+
+  const handleToggleZoom = useCallback(() => {
+    setIsZoomed(prev => !prev);
+  }, []);
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      viewerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  const handleDownload = useCallback(() => {
+    if (post?.file_url) {
+      const link = document.createElement('a');
+      link.href = post.file_url;
+      link.download = `${post.id}.${extFromUrl(post.file_url) || 'jpg'}`;
+      link.target = '_blank';
+      link.click();
+    }
+  }, [post]);
+
+  const handleCopyUrl = useCallback(() => {
+    if (post?.file_url) {
+      navigator.clipboard.writeText(post.file_url);
+      // You could show a toast here if you have a toast system
+    }
+  }, [post]);
+
+  const handleOpenInNewTab = useCallback(() => {
+    if (post?.file_url) {
+      window.open(post.file_url, '_blank');
+    }
+  }, [post]);
+
+  const handleScrollInfo = useCallback((direction: 'up' | 'down') => {
+    if (infoRef.current) {
+      const scrollAmount = 100;
+      infoRef.current.scrollBy({
+        top: direction === 'down' ? scrollAmount : -scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
+  // Setup keyboard shortcuts
+  useKeyboardShortcuts([
+    { key: 'Escape', handler: onClose, description: 'Close viewer' },
+    { key: 'ArrowLeft', handler: handlePrevious, enabled: hasPrevious, description: 'Previous image' },
+    { key: 'ArrowRight', handler: handleNext, enabled: hasNext, description: 'Next image' },
+    { key: 'ArrowUp', handler: () => handleScrollInfo('up'), description: 'Scroll info up' },
+    { key: 'ArrowDown', handler: () => handleScrollInfo('down'), description: 'Scroll info down' },
+    { key: ' ', handler: handleToggleZoom, description: 'Toggle zoom' },
+    { key: 'f', handler: handleToggleFullscreen, description: 'Toggle fullscreen' },
+    { key: 'd', handler: handleDownload, description: 'Download image' },
+    { key: 'c', handler: handleCopyUrl, description: 'Copy image URL' },
+    { key: 't', handler: handleOpenInNewTab, description: 'Open in new tab' },
+  ], { enabled: !!post });
 
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-
     if (post) {
-      document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
       
       // Fetch tag info for yande.re, konachan.com, gelbooru.com, rule34.xxx, and e621.net
@@ -53,10 +140,12 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
     };
-  }, [post, onClose, site, apiKey]);
+  }, [post, site, apiKey]);
 
   if (!post) return null;
 
@@ -134,7 +223,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
   const favCount: number | undefined = (post as any).fav_count;
 
   return (
-    <div className="viewer-overlay" onClick={onClose}>
+    <div className="viewer-overlay" onClick={onClose} ref={viewerRef}>
       <div className="viewer-container" onClick={(e) => e.stopPropagation()}>
         <button className="viewer-close" onClick={onClose}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -145,7 +234,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
         <div className="viewer-content">
           {!hasImage && (
             <div className="viewer-loading" style={{ color: 'var(--text-secondary)' }}>
-              no image avalaible
+              no image available
             </div>
           )}
 
@@ -167,16 +256,44 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
               />
             ) : (
               <img
+                ref={mediaRef as React.RefObject<HTMLImageElement>}
                 src={proxyImageUrl(displayUrl)}
                 alt={`Post ${post.id}`}
-                className={`viewer-media ${imageLoaded ? 'loaded' : ''}`}
+                className={`viewer-media ${imageLoaded ? 'loaded' : ''} ${isZoomed ? 'zoomed' : ''}`}
                 onLoad={() => setImageLoaded(true)}
+                onClick={handleToggleZoom}
+                style={isZoomed ? { cursor: 'zoom-out' } : { cursor: 'zoom-in' }}
               />
             )
           )}
         </div>
 
-        <div className="viewer-info">
+        {/* Navigation arrows */}
+        {onNavigate && hasPrevious && (
+          <button 
+            className="viewer-nav viewer-nav-prev" 
+            onClick={(e) => { e.stopPropagation(); handlePrevious(); }}
+            title="Previous (←)"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
+        
+        {onNavigate && hasNext && (
+          <button 
+            className="viewer-nav viewer-nav-next" 
+            onClick={(e) => { e.stopPropagation(); handleNext(); }}
+            title="Next (→)"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
+
+        <div className="viewer-info" ref={infoRef}>
 
           <div className="info-section">
             <h3>Tags</h3>
@@ -462,6 +579,51 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
 
         .viewer-media.loaded {
           opacity: 1;
+        }
+        
+        .viewer-media.zoomed {
+          max-width: none;
+          max-height: none;
+          cursor: zoom-out !important;
+        }
+
+        .viewer-nav {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 48px;
+          height: 48px;
+          border-radius: var(--radius-sm);
+          background: rgba(0, 0, 0, 0.7);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+          transition: all 0.2s ease;
+          opacity: 0.7;
+        }
+
+        .viewer-nav:hover {
+          opacity: 1;
+          background: rgba(0, 0, 0, 0.9);
+          transform: translateY(-50%) scale(1.1);
+        }
+
+        .viewer-nav-prev {
+          left: 20px;
+        }
+
+        .viewer-nav-next {
+          right: 380px;
+        }
+
+        @media (max-width: 768px) {
+          .viewer-nav-next {
+            right: 20px;
+          }
         }
 
         .viewer-info {
