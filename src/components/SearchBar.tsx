@@ -7,9 +7,6 @@ import Image from 'next/image';
 import { SITE_CONFIG, DEFAULT_RATING_BY_SITE } from '@/lib/constants';
 import Pagination from './Pagination';
 import SuggestionsList from './search/SuggestionsList';
-import ApiKeyModal from './search/ApiKeyModal';
-import E621CredentialsModal from './search/E621CredentialsModal';
-import FiltersPanel from './search/FiltersPanel';
 import SettingsModal from './search/SettingsModal';
 
 interface TagSuggestion {
@@ -67,13 +64,6 @@ export default function SearchBar({
   const [searchInput, setSearchInput] = useState(searchTags || DEFAULT_RATING_BY_SITE[currentSite] || '');
   const [showFilters, setShowFilters] = useState(false);
   const [showSiteDropdown, setShowSiteDropdown] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [e621LoginInput, setE621LoginInput] = useState(currentE621Login);
-  const [e621ApiKeyInput, setE621ApiKeyInput] = useState(currentE621ApiKey);
-  const [showE621Modal, setShowE621Modal] = useState(false);
-  const [hasGelbooruCreds, setHasGelbooruCreds] = useState(false);
-  const [hasE621Creds, setHasE621Creds] = useState(false);
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
@@ -93,26 +83,6 @@ export default function SearchBar({
   }, [searchTags]);
 
 
-  useEffect(() => {
-    setApiKeyInput(currentApiKey);
-  }, [currentApiKey]);
-
-  useEffect(() => {
-    setE621LoginInput(currentE621Login);
-    setE621ApiKeyInput(currentE621ApiKey);
-  }, [currentE621Login, currentE621ApiKey]);
-
-  // Reflect server-stored credential presence via endpoint
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/creds');
-        const data = await res.json();
-        setHasGelbooruCreds(!!data.gelbooru);
-        setHasE621Creds(!!data.e621);
-      } catch {}
-    })();
-  }, []);
 
 
 
@@ -385,33 +355,15 @@ export default function SearchBar({
           <button
             type="button"
             className="filter-button"
-            onClick={() => setShowFilters(!showFilters)}
-            title="Filters"
-            aria-label="Open filters"
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+            aria-label="Open settings"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M3 4h18M3 12h18M3 20h18" 
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" strokeWidth="2"/>
+              <path d="M19.4 15a7.97 7.97 0 0 0 .1-2 7.97 7.97 0 0 0-.1-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.4a.5.5 0 0 0-.6-.2l-2.5 1a8.2 8.2 0 0 0-1.7-1l-.4-2.7a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4l-.4 2.7a8.2 8.2 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.4a.5.5 0 0 0 .1.6L4.6 11a7.97 7.97 0 0 0 0 4l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.4a.5.5 0 0 0 .6.2l2.5-1c.5.4 1.1.7 1.7 1l.4 2.7c.1.2.3.4.5.4h4c.2 0 .4-.2.5-.4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.4a.5.5 0 0 0-.1-.6L19.4 15Z" stroke="currentColor" strokeWidth="2" fill="none"/>
             </svg>
           </button>
-
-              {showFilters && (
-                <FiltersPanel
-                  currentImageType={currentImageType}
-                  onImageTypeChange={onImageTypeChange}
-                  currentLimit={currentLimit}
-                  onLimitChange={onLimitChange}
-                  currentSite={currentSite}
-                  onOpenGelbooru={() => setShowApiKeyModal(true)}
-                  onOpenE621={() => setShowE621Modal(true)}
-                  hasGelbooruCreds={hasGelbooruCreds}
-                  hasE621Creds={hasE621Creds}
-                  onOpenSettings={() => {
-                    setShowSettings(true);
-                    setShowFilters(false);
-                  }}
-                />
-              )}
         </div>
 
 
@@ -427,36 +379,20 @@ export default function SearchBar({
       </div>
       </div>
 
-      {/* Mobile floating filters (hamburger) in top-right */}
+      {/* Mobile floating settings in top-right */}
       <div className="mobile-filter-fab mobile-only" ref={mobileFilterRef}>
         <button
           type="button"
           className="mobile-filter-button"
-          onClick={() => setShowFilters(!showFilters)}
-          title="Filters"
-          aria-label="Open filters"
+          onClick={() => setShowSettings(true)}
+          title="Settings"
+          aria-label="Open settings"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M3 4h18M3 12h18M3 20h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" strokeWidth="2"/>
+            <path d="M19.4 15a7.97 7.97 0 0 0 .1-2 7.97 7.97 0 0 0-.1-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.4a.5.5 0 0 0-.6-.2l-2.5 1a8.2 8.2 0 0 0-1.7-1l-.4-2.7a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4l-.4 2.7a8.2 8.2 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.4a.5.5 0 0 0 .1.6L4.6 11a7.97 7.97 0 0 0 0 4l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.4a.5.5 0 0 0 .6.2l2.5-1c.5.4 1.1.7 1.7 1l.4 2.7c.1.2.3.4.5.4h4c.2 0 .4-.2.5-.4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.4a.5.5 0 0 0-.1-.6L19.4 15Z" stroke="currentColor" strokeWidth="2" fill="none"/>
           </svg>
         </button>
-        {showFilters && (
-          <FiltersPanel
-            currentImageType={currentImageType}
-            onImageTypeChange={onImageTypeChange}
-            currentLimit={currentLimit}
-            onLimitChange={onLimitChange}
-            currentSite={currentSite}
-            onOpenGelbooru={() => setShowApiKeyModal(true)}
-            onOpenE621={() => setShowE621Modal(true)}
-            hasGelbooruCreds={hasGelbooruCreds}
-            hasE621Creds={hasE621Creds}
-            onOpenSettings={() => {
-              setShowSettings(true);
-              setShowFilters(false);
-            }}
-          />
-        )}
       </div>
 
        <div className="bottom-row mobile-only">
@@ -935,72 +871,6 @@ export default function SearchBar({
         }
       `}</style>
 
-      {showApiKeyModal && typeof document !== 'undefined' && 
-        ReactDOM.createPortal(
-          <ApiKeyModal
-            apiKeyInput={apiKeyInput}
-            onChange={(v) => setApiKeyInput(v)}
-            onSave={async () => {
-              try {
-                await fetch('/api/creds', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ gelbooruApi: apiKeyInput }),
-                });
-                const res = await fetch('/api/creds');
-                const data = await res.json();
-                setHasGelbooruCreds(!!data.gelbooru);
-              } catch {}
-              onApiKeyChange('');
-              setApiKeyInput('');
-              setShowApiKeyModal(false);
-            }}
-            onClear={async () => {
-              try {
-                await fetch('/api/creds', { method: 'DELETE' });
-                const res = await fetch('/api/creds');
-                const data = await res.json();
-                setHasGelbooruCreds(!!data.gelbooru);
-              } catch {}
-            }}
-            onClose={() => setShowApiKeyModal(false)}
-          />, document.body)
-      }
-
-      {showE621Modal && typeof document !== 'undefined' &&
-        ReactDOM.createPortal(
-          <E621CredentialsModal
-            login={e621LoginInput}
-            apiKey={e621ApiKeyInput}
-            onChangeLogin={setE621LoginInput}
-            onChangeKey={setE621ApiKeyInput}
-            onSave={async () => {
-              try {
-                await fetch('/api/creds', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ e621Login: e621LoginInput, e621ApiKey: e621ApiKeyInput }),
-                });
-                const res = await fetch('/api/creds');
-                const data = await res.json();
-                setHasE621Creds(!!data.e621);
-              } catch {}
-              onE621AuthChange('', '');
-              setE621LoginInput('');
-              setE621ApiKeyInput('');
-              setShowE621Modal(false);
-            }}
-            onClear={async () => {
-              try {
-                await fetch('/api/creds', { method: 'DELETE' });
-                const res = await fetch('/api/creds');
-                const data = await res.json();
-                setHasE621Creds(!!data.e621);
-              } catch {}
-            }}
-            onClose={() => setShowE621Modal(false)}
-          />, document.body)
-      }
 
       {showSettings && typeof document !== 'undefined' &&
         ReactDOM.createPortal(

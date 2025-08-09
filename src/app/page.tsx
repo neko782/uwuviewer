@@ -371,6 +371,48 @@ export default function Home() {
     };
   }, []);
 
+  // Load image settings (imageType, postsPerPage) from server and listen for changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (!cancelled) {
+          if (data?.imageType === 'preview' || data?.imageType === 'sample') {
+            setImageType(data.imageType);
+          }
+          if (typeof data?.postsPerPage === 'number' && data.postsPerPage > 0) {
+            setLimit(Math.max(1, Math.floor(data.postsPerPage)));
+          }
+        }
+      } catch {}
+    })();
+
+    const onSettings = (e: any) => {
+      const it = e?.detail?.imageType as 'preview' | 'sample' | undefined;
+      const pp = e?.detail?.postsPerPage as number | undefined;
+      if (it === 'preview' || it === 'sample') {
+        setImageType(it);
+      }
+      if (typeof pp === 'number' && pp > 0) {
+        setLimit(Math.max(1, Math.floor(pp)));
+        // Reset to page 1 and reload
+        setPosts([]);
+        setPage(1);
+        setHasMore(true);
+        setError(null);
+        loadPosts(1, true);
+      }
+    };
+
+    if (typeof window !== 'undefined') window.addEventListener('settings-changed', onSettings as any);
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined') window.removeEventListener('settings-changed', onSettings as any);
+    };
+  }, [loadPosts]);
+
   // Initial tag prefetch will be triggered from the URL-parse effect to honor the URL's site
 
 

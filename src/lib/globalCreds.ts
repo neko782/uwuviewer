@@ -8,6 +8,9 @@ export interface GlobalCreds {
   // Global preferences/state for the single-user app
   tagPrefetchConsents?: Record<string, 'accepted' | 'declined'>;
   blocklistTags?: string;
+  // UI preferences
+  imageType?: 'preview' | 'sample';
+  postsPerPage?: number;
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
