@@ -153,189 +153,263 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     }, 300);
   };
 
+  // Close on Escape to improve overlay UX
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (typeof window !== 'undefined') window.addEventListener('keydown', onKey);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('keydown', onKey); };
+  }, [onClose]);
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Settings</h3>
-        <p className="modal-description">Manage preferences for uwuviewer.</p>
+    <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
+      <div className="settings-page" onClick={(e) => e.stopPropagation()}>
+        <div className="settings-header">
+          <div className="settings-title">Settings</div>
+          <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="settings-close-text">Close</span>
+          </button>
+        </div>
 
-        {/* Image quality */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Image quality</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className={`settings-pill ${imageType === 'preview' ? 'active' : ''}`}
-              onClick={() => { setImageType('preview'); saveSetting({ imageType: 'preview' }, { imageType: 'preview' }); }}
-            >
-              Preview (Fast)
-            </button>
-            <button
-              type="button"
-              className={`settings-pill ${imageType === 'sample' ? 'active' : ''}`}
-              onClick={() => { setImageType('sample'); saveSetting({ imageType: 'sample' }, { imageType: 'sample' }); }}
-            >
-              Sample (HQ)
-            </button>
+        <div className="settings-content">
+          <p className="modal-description">Manage preferences for uwuviewer.</p>
+
+          {/* Image quality */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Image quality</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`settings-pill ${imageType === 'preview' ? 'active' : ''}`}
+                onClick={() => { setImageType('preview'); saveSetting({ imageType: 'preview' }, { imageType: 'preview' }); }}
+              >
+                Preview (Fast)
+              </button>
+              <button
+                type="button"
+                className={`settings-pill ${imageType === 'sample' ? 'active' : ''}`}
+                onClick={() => { setImageType('sample'); saveSetting({ imageType: 'sample' }, { imageType: 'sample' }); }}
+              >
+                Sample (HQ)
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Posts per page */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Posts per page</div>
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={postsPerPage}
-            onChange={(e) => {
-              const v = Math.max(1, Math.floor(parseInt(e.target.value || '0', 10)));
-              setPostsPerPage(v);
-              saveSetting({ postsPerPage: v }, { postsPerPage: v });
-            }}
-            className="blocklist-input"
-            style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
-          />
-        </div>
-
-        {/* API keys dropdown */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>API keys</div>
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => setOpenApi(o => !o)}
-              className="settings-dropdown-trigger"
-              aria-expanded={openApi}
-            >
-              <span style={{ color: 'var(--text-primary)' }}>Manage credentials</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ transform: openApi ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', marginLeft: 'auto' }}>
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            {openApi && (
-              <div className="settings-dropdown">
-                {['gelbooru.com','e621.net'].map((val) => {
-                  const s = SITE_CONFIG.find(x => x.value === val)!;
-                  const has = val === 'gelbooru.com' ? hasGelbooruCreds : hasE621Creds;
-                  const label = val === 'gelbooru.com' ? 'Gelbooru API Key' : 'e621 Credentials';
-                  const status = has ? 'Set ✓' : 'Not set';
-                  return (
-                    <button
-                      key={val}
-                      type="button"
-                      className="settings-row"
-                      onClick={() => {
-                        if (val === 'gelbooru.com') setShowGelModal(true); else setShowE621Modal(true);
-                        setOpenApi(false);
-                      }}
-                    >
-                      <Image src={s.icon} alt={s.label} width={16} height={16} className="site-icon" />
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ color: 'var(--text-primary)' }}>{label}</div>
-                        <div className="size-note">{status}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          {/* Posts per page */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Posts per page</div>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={postsPerPage}
+              onChange={(e) => {
+                const v = Math.max(1, Math.floor(parseInt(e.target.value || '0', 10)));
+                setPostsPerPage(v);
+                saveSetting({ postsPerPage: v }, { postsPerPage: v });
+              }}
+              className="blocklist-input"
+              style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
+            />
           </div>
-        </div>
 
-        {/* Tag download consent (dropdown) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tag download consent</div>
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => setOpenConsent(o => !o)}
-              className="settings-dropdown-trigger"
-              aria-expanded={openConsent}
-            >
-              <span style={{ color: 'var(--text-primary)' }}>Per-site consents</span>
-              <span style={{ marginLeft: 'auto', opacity: 0.7, color: 'var(--text-secondary)', fontSize: 12 }}>{supportedSites.length} sites</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8, transform: openConsent ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-
-            {openConsent && (
-              <div className="settings-dropdown">
-                {loading ? (
-                  <div className="settings-row dim">Loading…</div>
-                ) : (
-                  supportedSites.map((s) => {
-                    const v = consents[s.value] ?? null;
-                    const saving = savingSites.has(s.value);
-                    const label = v === 'accepted' ? 'Accepted' : v === 'declined' ? 'Declined' : 'Ask later';
-                    const mark = v === 'accepted' ? '✓' : v === 'declined' ? '✕' : '•';
-                    const markColor = v === 'accepted' ? '#3fb950' : v === 'declined' ? '#f85149' : 'var(--text-dim)';
+          {/* API keys dropdown */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>API keys</div>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setOpenApi(o => !o)}
+                className="settings-dropdown-trigger"
+                aria-expanded={openApi}
+              >
+                <span style={{ color: 'var(--text-primary)' }}>Manage credentials</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ transform: openApi ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', marginLeft: 'auto' }}>
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {openApi && (
+                <div className="settings-dropdown">
+                  {['gelbooru.com','e621.net'].map((val) => {
+                    const s = SITE_CONFIG.find(x => x.value === val)!;
+                    const has = val === 'gelbooru.com' ? hasGelbooruCreds : hasE621Creds;
+                    const label = val === 'gelbooru.com' ? 'Gelbooru API Key' : 'e621 Credentials';
+                    const status = has ? 'Set ✓' : 'Not set';
                     return (
                       <button
-                        key={s.value}
+                        key={val}
                         type="button"
                         className="settings-row"
-                        disabled={saving}
-                        onClick={() => updateConsent(s.value, cycle(v))}
-                        title="Click to toggle between Accept → Decline → Ask later"
+                        onClick={() => {
+                          if (val === 'gelbooru.com') setShowGelModal(true); else setShowE621Modal(true);
+                          setOpenApi(false);
+                        }}
                       >
                         <Image src={s.icon} alt={s.label} width={16} height={16} className="site-icon" />
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                          <div style={{ color: 'var(--text-primary)' }}>{s.label}</div>
-                          <div className="size-note">{getTagDownloadSizeLabel(s.value)} download</div>
-                        </div>
-                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{label}</span>
-                          <span aria-hidden style={{ color: markColor, fontWeight: 700 }}>{mark}</span>
+                          <div style={{ color: 'var(--text-primary)' }}>{label}</div>
+                          <div className="size-note">{status}</div>
                         </div>
                       </button>
                     );
-                  })
-                )}
-              </div>
-            )}
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tag download consent (dropdown) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tag download consent</div>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setOpenConsent(o => !o)}
+                className="settings-dropdown-trigger"
+                aria-expanded={openConsent}
+              >
+                <span style={{ color: 'var(--text-primary)' }}>Per-site consents</span>
+                <span style={{ marginLeft: 'auto', opacity: 0.7, color: 'var(--text-secondary)', fontSize: 12 }}>{supportedSites.length} sites</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8, transform: openConsent ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {openConsent && (
+                <div className="settings-dropdown">
+                  {loading ? (
+                    <div className="settings-row dim">Loading…</div>
+                  ) : (
+                    supportedSites.map((s) => {
+                      const v = consents[s.value] ?? null;
+                      const saving = savingSites.has(s.value);
+                      const label = v === 'accepted' ? 'Accepted' : v === 'declined' ? 'Declined' : 'Ask later';
+                      const mark = v === 'accepted' ? '✓' : v === 'declined' ? '✕' : '•';
+                      const markColor = v === 'accepted' ? '#3fb950' : v === 'declined' ? '#f85149' : 'var(--text-dim)';
+                      return (
+                        <button
+                          key={s.value}
+                          type="button"
+                          className="settings-row"
+                          disabled={saving}
+                          onClick={() => updateConsent(s.value, cycle(v))}
+                          title="Click to toggle between Accept → Decline → Ask later"
+                        >
+                          <Image src={s.icon} alt={s.label} width={16} height={16} className="site-icon" />
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <div style={{ color: 'var(--text-primary)' }}>{s.label}</div>
+                            <div className="size-note">{getTagDownloadSizeLabel(s.value)} download</div>
+                          </div>
+                          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{label}</span>
+                            <span aria-hidden style={{ color: markColor, fontWeight: 700 }}>{mark}</span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Blocklist tags input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Blocklist tags</div>
+            <input
+              type="text"
+              value={blocklist}
+              onChange={(e) => {
+                const v = e.target.value;
+                setBlocklist(v);
+                if (saveTimerRef.current) {
+                  clearTimeout(saveTimerRef.current);
+                  saveTimerRef.current = null;
+                }
+                saveTimerRef.current = setTimeout(async () => {
+                  try {
+                    await fetch('/api/settings', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ blocklist: v })
+                    });
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent('blocklist-changed', { detail: { blocklist: v } }));
+                    }
+                  } catch {}
+                }, 2000);
+              }}
+              placeholder="space-separated tags to always exclude"
+              className="blocklist-input"
+              style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
+            />
+            <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>These tags will be added to every search as negatives (e.g., -tag).</div>
+          </div>
+
+          <div className="modal-buttons" style={{ marginTop: 12 }}>
+            <button onClick={onClose} className="modal-button cancel">Close</button>
           </div>
         </div>
 
-        {/* Blocklist tags input */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Blocklist tags</div>
-          <input
-            type="text"
-            value={blocklist}
-            onChange={(e) => {
-              const v = e.target.value;
-              setBlocklist(v);
-              if (saveTimerRef.current) {
-                clearTimeout(saveTimerRef.current);
-                saveTimerRef.current = null;
-              }
-              saveTimerRef.current = setTimeout(async () => {
-                try {
-                  await fetch('/api/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ blocklist: v })
-                  });
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('blocklist-changed', { detail: { blocklist: v } }));
-                  }
-                } catch {}
-              }, 2000);
-            }}
-            placeholder="space-separated tags to always exclude"
-            className="blocklist-input"
-            style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
-          />
-          <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>These tags will be added to every search as negatives (e.g., -tag).</div>
-        </div>
-
-        <div className="modal-buttons" style={{ marginTop: 12 }}>
-          <button onClick={onClose} className="modal-button cancel">Close</button>
-        </div>
-
         <style jsx>{`
+          .settings-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            z-index: 900; /* keep below nested modals (1000) */
+          }
+          .settings-page {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-secondary);
+            border-left: none;
+            border-right: none;
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 0 1px var(--border-default) inset;
+          }
+          .settings-header {
+            position: sticky;
+            top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-default);
+            z-index: 1;
+          }
+          .settings-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+          }
+          .settings-close {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+          .settings-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+          .settings-close-text { font-size: 13px; }
+          .settings-content {
+            padding: 20px;
+            overflow: auto;
+            flex: 1 1 auto;
+          }
+
           .settings-dropdown-trigger {
             width: 100%;
             display: flex;
