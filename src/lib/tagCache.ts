@@ -522,7 +522,7 @@ class TagCacheManager {
           console.log(`Fetching ${site} tags dump for ${dateStr}...`);
           const res = await fetch(url, {
             headers: {
-              'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)'
+              'User-Agent': 'uwuviewer/1.0 (by neko782, https://github.com/neko782/uwuviewer/)'
             }
           });
           if (!res.ok) {
@@ -573,7 +573,7 @@ class TagCacheManager {
           console.log(`Fetching ${site} tag aliases dump for ${dateStr}...`);
           const res = await fetch(url, {
             headers: {
-              'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)'
+              'User-Agent': 'uwuviewer/1.0 (by neko782, https://github.com/neko782/uwuviewer/)'
             }
           });
           if (!res.ok) {

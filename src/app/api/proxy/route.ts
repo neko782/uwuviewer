@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     // Prepare headers and potential URL mutation
     const headers: Record<string, string> = {
-      'User-Agent': 'uwuviewer/1.0 (by anonymous, https://github.com/uwuviewer)',
+      'User-Agent': 'uwuviewer/1.0 (by neko782, https://github.com/neko782/uwuviewer/)',
       'Accept': 'application/json',
     };
 
