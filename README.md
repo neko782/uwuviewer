@@ -2,6 +2,10 @@
 
 A fast, single-user imageboard viewer built with Next.js. Browse and search multiple Booru-style sites from one interface with unified tagging, color-coded autocomplete, and an on-disk tag cache for instant suggestions.
 
+| Desktop | Mobile |
+|---|---|
+| <img alt="Desktop" src="readme/desktop.png" height="400"> | <img alt="Mobile" src="readme/mobile.png" height="400"> |
+
 Supported sites:
 - yande.re
 - konachan.com
@@ -48,14 +52,3 @@ npm start
 - undici for outbound fetch with custom Agent
 - saxes for streaming XML parse (rule34 tags)
 - sonner for toasts
-
-
-## Screenshots
-
-Desktop:
-
-![Desktop](readme/desktop.png)
-
-Mobile:
-
-![Mobile](readme/mobile.png)
