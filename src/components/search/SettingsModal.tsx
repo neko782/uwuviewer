@@ -231,7 +231,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 aria-expanded={openApi}
               >
                 <span style={{ color: 'var(--text-primary)' }}>Manage credentials</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ transform: openApi ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', marginLeft: 'auto' }}>
+                <span style={{ marginLeft: 'auto', opacity: 0.7, color: 'var(--text-secondary)', fontSize: 12 }}>{['gelbooru.com','e621.net'].length} sites</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8, transform: openApi ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>
                   <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
