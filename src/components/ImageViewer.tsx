@@ -184,7 +184,7 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
               <div className="tags-grouped">
                 {Object.entries(tagData.grouped)
                   .sort(([aName], [bName]) => {
-                    const order = ['artist','character','species','copyright','circle','style','general','metadata','meta','lore','faults','deprecated','invalid','unknown'];
+                    const order = ['artist','character','species','copyright','circle','general','lore','style','metadata','meta','faults','deprecated','invalid','unknown'];
                     const idx = (name: string) => {
                       const n = name.toLowerCase();
                       const key = (n === 'metadata' || n === 'meta') ? 'metadata' : n;
