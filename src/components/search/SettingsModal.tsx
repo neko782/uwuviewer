@@ -171,12 +171,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span className="settings-close-text">Close</span>
           </button>
         </div>
 
         <div className="settings-content">
-          <p className="modal-description">Manage preferences for uwuviewer.</p>
+
 
           {/* Image quality */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -319,7 +318,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
           {/* Blocklist tags input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Blocklist tags</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Blacklist tags</div>
             <input
               type="text"
               value={blocklist}
@@ -347,12 +346,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               className="blocklist-input"
               style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: 13 }}
             />
-            <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>These tags will be added to every search as negatives (e.g., -tag).</div>
+
           </div>
 
-          <div className="modal-buttons" style={{ marginTop: 12 }}>
-            <button onClick={onClose} className="modal-button cancel">Close</button>
-          </div>
+
         </div>
 
         <style jsx>{`
@@ -364,12 +361,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             z-index: 900; /* keep below nested modals (1000) */
           }
           .settings-page {
-            width: 100%;
-            height: 100%;
+            width: calc(100% - 48px);
+            height: calc(100% - 48px);
             background: var(--bg-secondary);
             border-left: none;
             border-right: none;
-            border-radius: 0;
+            margin: 24px;
+            border-radius: var(--radius-lg);
             display: flex;
             flex-direction: column;
             box-shadow: 0 0 0 1px var(--border-default) inset;
@@ -381,7 +379,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             align-items: center;
             justify-content: space-between;
             padding: 16px 20px;
-            background: var(--bg-secondary);
+            background: var(--bg-tertiary);
             border-bottom: 1px solid var(--border-default);
             z-index: 1;
           }
