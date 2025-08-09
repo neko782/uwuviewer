@@ -182,7 +182,21 @@ export default function ImageViewer({ post, site, apiKey, onClose, onTagClick }:
             <h3>Tags</h3>
             {(site === 'yande.re' || site === 'konachan.com' || site === 'gelbooru.com' || site === 'rule34.xxx' || site === 'e621.net') && Object.keys(tagData.grouped).length > 0 ? (
               <div className="tags-grouped">
-                {Object.entries(tagData.grouped).map(([groupName, tags]) => (
+                {Object.entries(tagData.grouped)
+                  .sort(([aName], [bName]) => {
+                    const order = ['artist','character','species','copyright','circle','style','general','metadata','meta','lore','faults','deprecated','invalid','unknown'];
+                    const idx = (name: string) => {
+                      const n = name.toLowerCase();
+                      const key = (n === 'metadata' || n === 'meta') ? 'metadata' : n;
+                      const i = order.indexOf(key);
+                      return i === -1 ? order.length + 1 : i;
+                    };
+                    const ai = idx(aName);
+                    const bi = idx(bName);
+                    if (ai !== bi) return ai - bi;
+                    return aName.localeCompare(bName);
+                  })
+                  .map(([groupName, tags]) => (
                   <div key={groupName} className="tag-group">
                     <h4 className="tag-group-title">{groupName}</h4>
                     <div className="tags-container">
