@@ -49,7 +49,7 @@ Supported sites:
 ```bash
 # Clone the repo
 git clone <your-fork-or-repo-url>
-cd owo
+cd uwuviewer
 
 # Install exact dependencies
 npm ci
