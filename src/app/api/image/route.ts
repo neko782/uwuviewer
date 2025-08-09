@@ -104,8 +104,25 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Explicitly handle 304 Not Modified with an empty body
+    if (response.status === 304) {
+      const headers = new Headers(response.headers);
+      // 304 responses must not include a message body; also strip hop-by-hop and body-related headers
+      headers.delete('content-type');
+      headers.delete('content-length');
+      headers.delete('transfer-encoding');
+      headers.delete('connection');
+      headers.delete('keep-alive');
+      headers.delete('proxy-authenticate');
+      headers.delete('proxy-authorization');
+      headers.delete('te');
+      headers.delete('trailers');
+      headers.delete('upgrade');
+      return new NextResponse(null, { status: 304, headers });
+    }
+
     if (!response.ok) {
-      // Pass through upstream error status
+      // Pass through upstream error status (non-2xx, non-304)
       return NextResponse.json(
         { error: `Failed to fetch media: ${response.statusText}` },
         { status: response.status }
