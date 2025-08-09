@@ -21,6 +21,8 @@ This is completely vibe coded, I did not review code at all. It may contain awfu
 - Fast completely-local* tag autocomplete
 - Responsive, mobile friendly masonry UI
 
+\* except for gelbooru
+
 
 ## Requirements
 
