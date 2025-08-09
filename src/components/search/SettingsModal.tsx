@@ -101,7 +101,6 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
   const cycle = (v: ConsentValue): ConsentValue => {
     if (v === 'accepted') return 'declined';
-    if (v === 'declined') return null;
     return 'accepted';
   };
 
@@ -262,7 +261,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
           {/* Tag download consent (dropdown) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tag download consent</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Tag download preferences</div>
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -270,7 +269,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                 className="settings-dropdown-trigger"
                 aria-expanded={openConsent}
               >
-                <span style={{ color: 'var(--text-primary)' }}>Per-site consents</span>
+                <span style={{ color: 'var(--text-primary)' }}>Manage preferences</span>
                 <span style={{ marginLeft: 'auto', opacity: 0.7, color: 'var(--text-secondary)', fontSize: 12 }}>{supportedSites.length} sites</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8, transform: openConsent ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>
                   <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -285,9 +284,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                     supportedSites.map((s) => {
                       const v = consents[s.value] ?? null;
                       const saving = savingSites.has(s.value);
-                      const label = v === 'accepted' ? 'Accepted' : v === 'declined' ? 'Declined' : 'Ask later';
-                      const mark = v === 'accepted' ? '✓' : v === 'declined' ? '✕' : '•';
-                      const markColor = v === 'accepted' ? '#3fb950' : v === 'declined' ? '#f85149' : 'var(--text-dim)';
+                      const label = v === 'accepted' ? 'Download' : 'Do not download';
+                      const mark = v === 'accepted' ? '✓' : '✕';
+                      const markColor = v === 'accepted' ? '#3fb950' : '#f85149';
                       return (
                         <button
                           key={s.value}
@@ -295,7 +294,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                           className="settings-row"
                           disabled={saving}
                           onClick={() => updateConsent(s.value, cycle(v))}
-                          title="Click to toggle between Accept → Decline → Ask later"
+                          title="Click to toggle Download ↔ Do not download"
                         >
                           <Image src={s.icon} alt={s.label} width={16} height={16} className="site-icon" />
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
