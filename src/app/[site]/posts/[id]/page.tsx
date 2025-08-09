@@ -70,6 +70,7 @@ export default function PostPage(props: any) {
       {/* Top-left "Go to search" button. Intentionally simple navigation. */}
       <a
         href={searchHref}
+        className="ghost-back-btn"
         style={{
           position: 'fixed',
           top: 16,
@@ -78,11 +79,6 @@ export default function PostPage(props: any) {
           display: 'inline-flex',
           alignItems: 'center',
           gap: 8,
-          padding: '10px 12px',
-          background: 'var(--bg-secondary)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
           textDecoration: 'none'
         }}
         title="Go to search"
@@ -120,6 +116,27 @@ export default function PostPage(props: any) {
           onTagClick={(tag) => { const href = `/${site}/search/${encodeURIComponent(tag)}`; try { window.location.assign(href); } catch { window.location.href = href; } }}
         />
       )}
+
+      <style jsx>{`
+        .ghost-back-btn {
+          background: transparent;
+          border: 1px solid transparent;
+          color: var(--text-primary);
+          border-radius: 8px;
+          padding: 6px 10px;
+          font-weight: 400;
+          line-height: 1.2;
+          transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        .ghost-back-btn:hover {
+          background: var(--bg-tertiary);
+          border-color: var(--border-subtle);
+        }
+        .ghost-back-btn:active {
+          background: var(--bg-hover);
+          border-color: var(--border-default);
+        }
+      `}</style>
     </div>
   );
 }
