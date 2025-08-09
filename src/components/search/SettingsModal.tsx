@@ -163,7 +163,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   }, [onClose]);
 
   return (
-    <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
+    <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', zIndex: 900 }}>
       <div className="settings-page" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <div className="settings-title">Settings</div>
