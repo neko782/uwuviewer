@@ -34,7 +34,9 @@ This is completely vibe coded, I did not review code at all. It may contain awfu
 ```bash
 git clone https://github.com/neko782/uwuviewer
 cd uwuviewer
-npm ci
+npm ci 
+# For termux:
+# npm i lightningcss.android-arm64.node
 npm run build
 npm start
 ```
