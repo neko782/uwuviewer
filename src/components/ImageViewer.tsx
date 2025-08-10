@@ -76,9 +76,9 @@ export default function ImageViewer({
   const handleDownload = useCallback(() => {
     if (post?.file_url) {
       const link = document.createElement('a');
-      link.href = post.file_url;
+      link.href = proxyImageUrl(post.file_url);
       link.download = `${post.id}.${extFromUrl(post.file_url) || 'jpg'}`;
-      link.target = '_blank';
+      // Remove target='_blank' to trigger download instead of opening new tab
       link.click();
     }
   }, [post]);
@@ -90,11 +90,6 @@ export default function ImageViewer({
     }
   }, [post]);
 
-  const handleOpenInNewTab = useCallback(() => {
-    if (post?.file_url) {
-      window.open(post.file_url, '_blank');
-    }
-  }, [post]);
 
   const handleScrollInfo = useCallback((direction: 'up' | 'down') => {
     if (infoRef.current) {
@@ -117,8 +112,12 @@ export default function ImageViewer({
     { key: 'f', handler: handleToggleFullscreen, description: 'Toggle fullscreen' },
     { key: 'd', handler: handleDownload, description: 'Download image' },
     { key: 'c', handler: handleCopyUrl, description: 'Copy image URL' },
-    { key: 't', handler: handleOpenInNewTab, description: 'Open in new tab' },
   ], { enabled: !!post });
+
+  // Reset imageLoaded state when post changes
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [post?.id]);
 
   useEffect(() => {
     if (post) {
@@ -241,6 +240,7 @@ export default function ImageViewer({
           {hasImage && !imageLoaded && (
             <div className="viewer-loading">
               <div className="spinner" />
+              <div className="loading-text">Loading image...</div>
             </div>
           )}
           
@@ -548,21 +548,39 @@ export default function ImageViewer({
           position: absolute;
           inset: 0;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(4px);
+          z-index: 5;
+          animation: fadeIn 0.2s ease;
         }
 
         .spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid var(--bg-tertiary);
+          width: 48px;
+          height: 48px;
+          border: 4px solid rgba(255, 255, 255, 0.1);
           border-top-color: var(--accent);
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
 
+        .loading-text {
+          margin-top: 16px;
+          color: var(--text-secondary);
+          font-size: 14px;
+          font-weight: 500;
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
         }
 
         .viewer-media {
@@ -572,13 +590,15 @@ export default function ImageViewer({
           height: auto;
           object-fit: contain;
           opacity: 0;
-          transition: opacity 0.3s ease;
+          transition: opacity 0.4s ease, transform 0.4s ease;
           display: block;
           background: black;
+          transform: scale(0.95);
         }
 
         .viewer-media.loaded {
           opacity: 1;
+          transform: scale(1);
         }
         
         .viewer-media.zoomed {

@@ -840,16 +840,33 @@ export default function Home() {
     { key: 'ArrowUp', handler: () => handleGalleryNavigation('up'), enabled: !selectedPost },
     { key: 'ArrowDown', handler: () => handleGalleryNavigation('down'), enabled: !selectedPost },
     { key: 'Enter', handler: handleOpenSelected, enabled: !selectedPost && selectedIndex >= 0 },
-    { key: 'Home', handler: () => setSelectedIndex(0), enabled: !selectedPost && posts.length > 0 },
-    { key: 'End', handler: () => setSelectedIndex(posts.length - 1), enabled: !selectedPost && posts.length > 0 },
+    { key: 'Home', handler: () => {
+      setSelectedIndex(0);
+      // Scroll to top when Home is pressed
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }, enabled: !selectedPost && posts.length > 0 },
+    { key: 'End', handler: () => {
+      setSelectedIndex(posts.length - 1);
+      // Force scroll to the last image
+      requestAnimationFrame(() => {
+        const lastElement = document.querySelector(`[data-index="${posts.length - 1}"]`);
+        if (lastElement) {
+          lastElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'center'
+          });
+        }
+      });
+    }, enabled: !selectedPost && posts.length > 0 },
     { key: 'PageUp', handler: () => handlePageChange(Math.max(1, page - 1)), enabled: !selectedPost && page > 1 },
     { key: 'PageDown', handler: () => handlePageChange(page + 1), enabled: !selectedPost && hasMore },
     
     // Global shortcuts
     { key: '/', handler: handleFocusSearch, preventDefault: true },
-    { key: 'k', ctrl: true, handler: handleFocusSearch, preventDefault: true },
     { key: 'h', handler: handleToggleHeader },
-    { key: 's', handler: handleToggleSettings },
     { key: '?', shift: true, handler: () => setShowShortcuts(true) },
     
     // Site switching

@@ -140,13 +140,12 @@ export function useArrowKeyNavigation(
 export const KEYBOARD_SHORTCUTS = {
   viewer: [
     { keys: '←/→', description: 'Previous/Next image' },
-    { keys: '↑/↓', description: 'Scroll image' },
+    { keys: '↑/↓', description: 'Scroll info panel' },
     { keys: 'Escape', description: 'Close viewer' },
     { keys: 'F', description: 'Toggle fullscreen' },
     { keys: 'Space', description: 'Toggle zoom' },
     { keys: 'D', description: 'Download image' },
     { keys: 'C', description: 'Copy image URL' },
-    { keys: 'T', description: 'Open in new tab' },
   ],
   gallery: [
     { keys: '←/→', description: 'Navigate images horizontally' },
@@ -154,15 +153,11 @@ export const KEYBOARD_SHORTCUTS = {
     { keys: 'Enter', description: 'Open selected image' },
     { keys: 'PageUp/PageDown', description: 'Previous/Next page' },
     { keys: 'Home/End', description: 'First/Last image' },
-    { keys: 'G', description: 'Focus on selected image' },
   ],
   global: [
     { keys: '/', description: 'Focus search bar' },
-    { keys: 'Ctrl+K', description: 'Quick search' },
-    { keys: 'S', description: 'Toggle settings' },
     { keys: 'H', description: 'Toggle header' },
     { keys: '?', description: 'Show keyboard shortcuts' },
-    { keys: 'Ctrl+Shift+F', description: 'Toggle filters' },
     { keys: '1-5', description: 'Switch between sites' },
   ]
 };
