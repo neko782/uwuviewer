@@ -68,7 +68,7 @@ export default function ImageCard({ post, site, imageType = 'preview', onClick }
       <div className="image-container" style={{ paddingBottom: `${aspectRatio}%` }}>
         {!hasImage && (
           <div className="image-error">
-            <span>no image avalaible</span>
+            <span>no image available</span>
           </div>
         )}
 
