@@ -2,6 +2,7 @@
   "name": "uwuviewer",
   "version": "0.1.0",
   "private": true,
+  "license": "0BSD",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
